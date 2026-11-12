@@ -80,5 +80,39 @@ int main() {
   assert(fullRestart->load() == S::InvalidData);
   Storage.files[A] = "[" + std::string(32700, '0') + "]";
   assert(fullRestart->load() == S::InvalidData);
+  Storage.files.clear();
+  auto batch = std::make_unique<TodoStore>();
+  assert(batch->load() == S::Ok);
+  for (const char* text : {"first", "second", "third"}) assert(batch->change(C::Add, 0, text) == S::Ok);
+  uint32_t ids[] = {1, 3};
+  const auto batchSnapshot = Storage.files;
+  for (int failure = 0; failure < 6; ++failure) {
+    Storage.files = batchSnapshot;
+    assert(batch->load() == S::Ok);
+    Storage.writeBudget = failure == 0 ? 12 : -1;
+    Storage.failOpen = failure == 1;
+    Storage.failClose = failure == 2;
+    Storage.failRename = failure == 3;
+    Storage.failRemove = failure == 4;
+    Storage.failDirectory = failure == 5;
+    assert(batch->eraseTasks(ids, 2) == S::StorageError && batch->model().size() == 3);
+    Storage.writeBudget = -1;
+    Storage.failOpen = Storage.failClose = Storage.failRename = Storage.failRemove = Storage.failDirectory = false;
+    auto recovered = std::make_unique<TodoStore>();
+    assert(recovered->load() == S::Ok && recovered->model().size() == 3);
+  }
+  Storage.files = batchSnapshot;
+  assert(batch->load() == S::Ok);
+  const auto beforeDelete = Storage.writes;
+  assert(batch->eraseTasks(nullptr, 0) == S::Ok && Storage.writes == beforeDelete);
+  assert(batch->eraseTasks(nullptr, 2) == S::InvalidData);
+  uint32_t bad[] = {1, 99};
+  assert(batch->eraseTasks(bad, 2) == S::InvalidData && batch->model().size() == 3 && Storage.writes == beforeDelete);
+  uint32_t duplicate[] = {1, 1};
+  assert(batch->eraseTasks(duplicate, 2) == S::InvalidData && batch->model().size() == 3);
+  assert(batch->eraseTasks(ids, 2) == S::Ok && Storage.writes == beforeDelete + 1);
+  auto afterBatch = std::make_unique<TodoStore>();
+  assert(afterBatch->load() == S::Ok && afterBatch->model().size() == 1 && afterBatch->model().find(2));
+  assert(afterBatch->change(C::Add, 0, "fourth") == S::Ok && afterBatch->model().find(4));
   std::cout << "Todo persistence checks passed, including failure recovery and full-capacity restart\n";
 }

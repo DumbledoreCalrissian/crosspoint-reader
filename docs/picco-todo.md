@@ -7,15 +7,20 @@ CrossPoint's reading-focused scope; this feature is maintained locally.
 
 Open **Todo** on Home (the book icon at the end of the cover-grid toolbar).
 Tap **New task**, type on the existing CrossPoint keyboard, and tap **OK**.
-Tap a task to open **Mark complete / Mark incomplete**, **Edit task**, and
-**Delete task**. Deletion opens the existing confirmation dialog. Cancel or
-Back leaves saved data unchanged. The Todo header arrow returns to the task list,
-then Home; the shared bottom-edge Home gesture also works. No Home key or
-provisional Confirm button is required.
+Tap the checkbox to toggle completion; tap the task description to edit it directly.
+Completed tasks have a checkmark and strike-through on each visible text line.
+Tap the bin at the top right to open **Delete tasks**. Select any number of tasks,
+then tap **Delete selected (N)** and confirm. Selection checkboxes on this screen
+mean deletion selection, independently of task completion. Back cancels selection;
+no data is written until deletion is confirmed. A confirmed batch uses one save.
+Canceling the keyboard or confirmation also leaves saved data unchanged.
+The Todo header arrow returns Home; the deletion header arrow returns to Todo.
+The shared bottom-edge Home gesture works from either screen. No hardware Home
+key or provisional Confirm button is required.
 
-The list shows Open/Done status. Swipe within the list to scroll. Task labels wrap
-up to two lines and truncate longer text; the task action screen shows up to four
-lines, and Edit opens the full text. Maximum: 32 tasks, 192 UTF-8 bytes per task.
+Swipe within a list to scroll. Task labels wrap up to two lines and truncate
+longer text; tapping the description opens its full text in the keyboard.
+Maximum: 32 tasks, 192 UTF-8 bytes per task.
 Leading/trailing ASCII whitespace is trimmed; blank text, control characters,
 invalid UTF-8, and over-limit text are rejected. The keyboard enforces the byte
 limit without splitting a character. There are no background tasks or network
@@ -56,6 +61,10 @@ copies. Host tests cover the algorithm, not electrical durability.
 - `lib/Todo/TodoStore.*`: versioned snapshots through HalStorage.
 - `src/activities/todo/TodoActivity.*`: UiListActivity, keyboard result adapter,
   and ConfirmationActivity. ActivityManager owns activity lifetime.
+- The SDK FreeInkUI list supplies separate leading-checkbox and label actions;
+  text targets draw optional strike-through per wrapped/truncated line. These
+  opt-in additions leave other lists unchanged. The SDK is on the local
+  `feat/todo-list-controls` branch; keep its recorded submodule revision.
 - Home menu and cover-grid toolbar expose the application.
 
 The model is 6,416 bytes on the tested arm64 host. One model is resident inside
@@ -64,7 +73,12 @@ ArduinoJson allocations are capped at 32 KiB per document plus allocation header
 input files are capped at 32 KiB and nesting at four. These are bounds, not
 measured ESP32 heap usage. The candidate model coexists with the live model and
 JSON document only during I/O. The keyboard/confirmation retains Todo as its
-parent; render rows are supplied lazily and allocate no task strings on repaint.
+parent; render rows are supplied lazily and retain no extra task strings.
+Deletion selection uses a 32-bit mask, a 64-byte footer label, and a 128-byte
+stack array of stable IDs during confirmation. Row minimum height permits at
+most ten full rows, keeping separate checkbox/label hits within the existing
+24-entry interaction table. Existing text wrapping may allocate temporary lines;
+strike-through reuses those same lines.
 There are no additional worker tasks, framebuffers, or dependencies. The existing
 keyboard owns its own temporary text string. A future text input can replace the
 `enterText`/`acceptText` boundary without changing the model or storage.
@@ -76,6 +90,8 @@ From the firmware checkout after building `simulator_picco`:
 ```sh
 sh test/todo/run.sh
 ../.venv/bin/python test/todo/simulator.py
+../.venv/bin/python test/todo/reader_smoke.py
+sh freeink-sdk/libs/ui/FreeInkUI/test/host/run.sh
 ```
 
 The first runs model/persistence checks under AddressSanitizer and UBSan using

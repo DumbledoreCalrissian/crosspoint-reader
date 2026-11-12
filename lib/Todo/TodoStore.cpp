@@ -189,3 +189,23 @@ TodoStore::Status TodoStore::change(Change change, uint32_t id, std::string_view
   tasks = *candidate;
   return Status::Ok;
 }
+
+TodoStore::Status TodoStore::eraseTasks(const uint32_t* ids, size_t count) {
+  if (!writable) return Status::InvalidData;
+  if (!count) return Status::Ok;
+  if (!ids || count > TodoModel::MAX_TASKS) return Status::InvalidData;
+  auto candidate = makeUniqueNoThrow<TodoModel>(tasks);
+  if (!candidate) {
+    LOG_ERR("TODO", "Delete allocation failed: %u bytes", static_cast<unsigned>(sizeof(TodoModel)));
+    return Status::OutOfMemory;
+  }
+  for (size_t i = 0; i < count; ++i) {
+    if (candidate->erase(ids[i]) != TodoModel::Result::Ok) return Status::InvalidData;
+  }
+  if (!save(*candidate)) {
+    LOG_ERR("TODO", "Batch delete failed; previous snapshot retained");
+    return Status::StorageError;
+  }
+  tasks = *candidate;
+  return Status::Ok;
+}

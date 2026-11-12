@@ -8,6 +8,7 @@ class TodoStore {
   Status load();
   Status change(Change change, uint32_t id = 0, std::string_view text = {});
   bool canEdit() const { return writable; }
+  Status eraseTasks(const uint32_t* ids, size_t count);
   const TodoModel& model() const { return tasks; }
 
  private:
