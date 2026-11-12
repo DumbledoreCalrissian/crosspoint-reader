@@ -50,6 +50,14 @@ class CrossPointWebServerActivity final : public Activity {
 
   // Set when Back or Home is seen while an upload holds handleClient().
   bool leaveRequested = false;
+  bool leaveHomeRequested = false;
+
+  // Where leaving lands. Back goes up one level (option -> this page -> file
+  // browser); the Home gesture goes Home. onExit reboots there after Wi-Fi use.
+  enum class ExitTo : uint8_t { Home, FileTransfer, FileBrowser };
+  ExitTo exitTo = ExitTo::Home;
+  void leaveTo(ExitTo target);
+  void showModeSelection();
 
   // Sustained WiFi-loss tracking; abandon only after WIFI_ABANDON_MS.
   int consecutiveDisconnects = 0;

@@ -24,15 +24,13 @@ ART.mkdir(exist_ok=True, parents=True)
 
 
 def enter(theme, extra=False, restored=False):
+    # Home rows: Browse Files, Library, [Plugins], Settings, Todo, Pomodoro.
     if theme == 4:
-        return '400:TAP:440,760;'
+        return '400:TAP:428,760;'
     if not extra:
-        y = [750, 707, 660, 726][theme]
-        if theme == 2 and not restored:
-            scroll = ''.join(f'{400*(i+1)}:SWIPE:240,580,240,440;' for i in range(5))
-            return scroll + f'2600:TAP:240,{y};'
+        y = [694, 634, 692, 670][theme]
         return f'400:TAP:240,{y};'
-    count = 6
+    count = 5
     return ''.join(f'{300*(i+1)}:DOWN;' for i in range(count)) + f'{300*(count+1)}:ENTER;'
 
 
@@ -91,9 +89,10 @@ def crowded_home(theme):
 
 
 def stationary_home_touch():
-    run(0, 'stationary-home-touch',
+    # Lyra Extended with Plugins overflows; returning from Pomodoro scrolls Library to the top row.
+    run(2, 'stationary-home-touch',
         '400:TAP:30,55;400:WAIT:Entering activity: Home;'
-        '500:TAP:180,480;500:WAIT:Entering activity: Library;300:QUIT',
+        '500:TAP:180,404;500:WAIT:Entering activity: Library;300:QUIT',
         settings={'pluginsEnabled': 1})
     print('Touching a scrolled Home row preserves press/release target PASS', flush=True)
 
@@ -200,12 +199,12 @@ def button_navigation():
 
 
 def home_scroll_indicator():
-    # Lyra Extended fits five Home rows; the sixth (Pomodoro) needs a visible indicator.
-    def ink(theme, name):
+    # Lyra Extended fits five Home rows; with Plugins the sixth needs a visible indicator.
+    def ink(theme, name, extra=None):
         with tempfile.TemporaryDirectory(prefix=f'pomodoro-{name}-', dir=ART) as directory:
             sd = Path(directory)
             (sd/'.crosspoint').mkdir()
-            (sd/'.crosspoint/settings.json').write_text(json.dumps({'uiTheme': theme}))
+            (sd/'.crosspoint/settings.json').write_text(json.dumps(dict(uiTheme=theme, **(extra or {}))))
             shot = ART/f'{name}.bmp'
             env = dict(os.environ, SDL_VIDEODRIVER='dummy', CROSSPOINT_SIM_SD=str(sd),
                        CROSSPOINT_SIM_INPUT_SCRIPT=f'0:WAIT:Entering activity: Home;800:SHOT:{shot};1500:QUIT')
@@ -215,9 +214,79 @@ def home_scroll_indicator():
         image = Image.open(shot).convert('L')
         strip = image.crop((464, 380, 480, 790))
         return sum(strip.histogram()[:64])
-    assert ink(2, 'home-indicator-lyra-extended') > 100, 'Lyra Extended Home overflow has no scroll indicator'
-    assert ink(1, 'home-indicator-lyra') == 0, 'Lyra Home draws an indicator although all rows fit'
-    print('Lyra Extended Home shows a scroll indicator; Lyra does not PASS', flush=True)
+    plugins = {'pluginsEnabled': 1}
+    assert ink(2, 'home-indicator-lyra-extended', plugins) > 100, 'Lyra Extended Home overflow has no indicator'
+    assert ink(2, 'home-indicator-lyra-extended-fits') == 0, 'Lyra Extended draws an indicator though rows fit'
+    assert ink(1, 'home-indicator-lyra', plugins) == 0, 'Lyra Home draws an indicator although all rows fit'
+    print('Home scroll indicator only when rows overflow PASS', flush=True)
+
+
+def launch(theme, name, script, settings=None, files=None):
+    """Run one script on an isolated card with a books folder; return the log."""
+    with tempfile.TemporaryDirectory(prefix=f'pomodoro-{name}-', dir=ART) as directory:
+        sd = Path(directory)
+        (sd/'.crosspoint').mkdir()
+        (sd/'books').mkdir()
+        (sd/'books/sample.txt').write_text('text')
+        (sd/'.crosspoint/settings.json').write_text(json.dumps(dict(uiTheme=theme, **(settings or {}))))
+        for relative, text in (files or {}).items():
+            (sd/relative).write_text(text)
+        env = dict(os.environ, SDL_VIDEODRIVER='dummy', CROSSPOINT_SIM_SD=str(sd),
+                   CROSSPOINT_SIM_SCREEN_TEXT='1', CROSSPOINT_SIM_INPUT_SCRIPT=script)
+        result = subprocess.run([str(PROGRAM)], cwd=ROOT, env=env, capture_output=True, text=True, timeout=60)
+        output = result.stdout + result.stderr
+        (LOGS/f'pomodoro-{name}.log').write_text(output)
+        assert result.returncode == 0 and 'WAIT timed out' not in output, name
+        return output
+
+
+def file_transfer_entry():
+    # File Transfer moved from Home to the file browser's root header.
+    home = '0:WAIT:Entering activity: Home;'
+    output = launch(1, 'transfer-home', home + '300:QUIT')
+    screens = [line for line in output.splitlines() if line.startswith('[SIM] SCREEN:') and 'Browse Files' in line]
+    assert screens and 'File Transfer' not in screens[-1], 'Home still lists File Transfer'
+    launch(1, 'transfer-touch', home + '400:TAP:240,346;0:WAIT:Entering activity: FileBrowser;'
+           f'800:SHOT:{ART}/file-browser-root.bmp;1500:TAP:440,55;0:WAIT:Entering activity: CrossPointWebServer;300:QUIT')
+    launch(0, 'transfer-keys', home + '400:ENTER;0:WAIT:Entering activity: FileBrowser;'
+           '600:UP;1200:ENTER;0:WAIT:Entering activity: CrossPointWebServer;300:QUIT')
+    # Top edges of the header buttons sit in the status band; they must not open Control Center.
+    output = launch(1, 'transfer-top-edge', home + '400:TAP:240,346;0:WAIT:Entering activity: FileBrowser;'
+                    '800:TAP:440,43;0:WAIT:Entering activity: CrossPointWebServer;300:QUIT')
+    assert 'Entering activity: FrontlightPanel' not in output, 'Header icon edge opened Control Center'
+    launch(1, 'transfer-control-center', home + '400:TAP:240,346;0:WAIT:Entering activity: FileBrowser;'
+           '800:SWIPE:0.5,0.01,0.5,0.45;0:WAIT:Entering activity: FrontlightPanel;300:QUIT')
+    output = launch(1, 'transfer-subfolder', home + '400:TAP:240,346;0:WAIT:Entering activity: FileBrowser;'
+                    '800:ENTER;0:WAIT:SCREEN:.*sample;800:TAP:440,55;2000:QUIT')
+    assert 'Entering activity: CrossPointWebServer' not in output, 'Subfolder header opened File Transfer'
+    print('File Transfer opens from the browser root by touch and keys, not from subfolders PASS', flush=True)
+
+
+def file_transfer_back():
+    # Back goes up one level: option -> File Transfer page -> file browser root.
+    # The device reboots to that page after Wi-Fi; the simulator's restart is a no-op.
+    page = ('0:WAIT:Entering activity: Home;400:TAP:240,346;0:WAIT:Entering activity: FileBrowser;'
+            '800:TAP:440,55;0:WAIT:Entering activity: NetworkModeSelection;')
+    back = '1500:TAP:30,63;'
+    launch(1, 'back-page', page + back + '0:WAIT:Entering activity: FileBrowser;300:QUIT')
+    output = launch(1, 'back-hotspot', page + '800:TAP:240,296;0:WAIT:Access Point started;' + back +
+                    '0:WAIT:Silent restart \\(target=file-transfer\\);0:WAIT:Entering activity: NetworkModeSelection;300:QUIT')
+    launch(1, 'back-calibre', page + '800:TAP:240,220;0:WAIT:Entering activity: CalibreConnect;800:WAIT:Entering activity: WifiSelection;'
+           + back + '0:WAIT:Entering activity: NetworkModeSelection;300:QUIT')
+    launch(1, 'back-join', page + '800:TAP:240,145;0:WAIT:Entering activity: WifiSelection;' + back +
+           '0:WAIT:Entering activity: NetworkModeSelection;300:QUIT')
+    launch(1, 'back-opds', page + '800:TAP:240,380;0:WAIT:Entering activity: OpdsServerList;' + back +
+           '0:WAIT:Entering activity: NetworkModeSelection;300:QUIT')
+    # One saved server opens the catalog directly; it turns Wi-Fi on itself.
+    opds = {'.crosspoint/opds.json': json.dumps({'servers': [{'name': 'Test', 'url': 'http://127.0.0.1:9/opds'}]})}
+    output = launch(1, 'back-opds-catalog', page + '800:TAP:240,380;0:WAIT:Entering activity: OpdsBookBrowser;'
+                    '0:WAIT:Entering activity: WifiSelection;1500:TAP:30,63;0:WAIT:SCREEN:.*connection failed;1500:TAP:30,63;'
+                    '0:WAIT:Silent restart \\(target=file-transfer\\);0:WAIT:Entering activity: NetworkModeSelection;300:QUIT',
+                    settings={'pluginsEnabled': 1}, files=opds)
+    assert 'Silent restart (target=home)' not in output, 'OPDS catalog Back rebooted to Home'
+    output = launch(1, 'home-hotspot', page + '800:TAP:240,296;0:WAIT:Access Point started;'
+                    '1500:SWIPE:0.5,0.98,0.5,0.5;0:WAIT:Silent restart \\(target=home\\);0:WAIT:Entering activity: Home;300:QUIT')
+    print('File Transfer Back returns one level; Home gesture still goes Home PASS', flush=True)
 
 
 def main():
@@ -234,6 +303,8 @@ def main():
     reset_defaults()
     button_navigation()
     home_scroll_indicator()
+    file_transfer_entry()
+    file_transfer_back()
     print('Pomodoro simulator workflows passed; Todo data unchanged')
 
 

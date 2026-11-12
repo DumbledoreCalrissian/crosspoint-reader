@@ -53,8 +53,10 @@ int OpdsServerListActivity::getItemCount() const {
 }
 
 OpdsServerListActivity::OpdsServerListActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
-                                               const bool pickerMode)
-    : UiListActivity("OpdsServerList", renderer, mappedInput), pickerMode(pickerMode) {}
+                                               const bool pickerMode, const bool fromFileTransfer)
+    : UiListActivity("OpdsServerList", renderer, mappedInput),
+      pickerMode(pickerMode),
+      fromFileTransfer(fromFileTransfer) {}
 
 void OpdsServerListActivity::onEnter() {
   UiListActivity::onEnter();
@@ -108,7 +110,9 @@ bool OpdsServerListActivity::handleCustomInput() {
 }
 
 void OpdsServerListActivity::onBackButton() {
-  if (pickerMode) {
+  if (pickerMode && fromFileTransfer) {
+    activityManager.goToFileTransfer();
+  } else if (pickerMode) {
     activityManager.goHome(HomeMenuItem::OPDS_BROWSER);
   } else {
     finish();
@@ -134,7 +138,8 @@ void OpdsServerListActivity::handleSelection() {
     if (nav.selected < serverCount) {
       const auto* server = OPDS_STORE.getServer(static_cast<size_t>(nav.selected));
       if (server) {
-        activityManager.replaceActivity(std::make_unique<OpdsBookBrowserActivity>(renderer, mappedInput, *server));
+        activityManager.replaceActivity(
+            std::make_unique<OpdsBookBrowserActivity>(renderer, mappedInput, *server, fromFileTransfer));
       }
     } else {
       auto editor = makeUniqueNoThrow<OpdsSettingsActivity>(renderer, mappedInput, -1);

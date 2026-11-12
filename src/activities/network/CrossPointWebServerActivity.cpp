@@ -95,16 +95,37 @@ void CrossPointWebServerActivity::onEnter() {
     return;
   }
 
-  // Launch network mode selection subactivity
+  showModeSelection();
+}
+
+void CrossPointWebServerActivity::showModeSelection() {
+  state = WebServerActivityState::MODE_SELECTION;
   LOG_DBG("WEBACT", "Launching NetworkModeSelectionActivity...");
   startActivityForResult(std::make_unique<NetworkModeSelectionActivity>(renderer, mappedInput),
                          [this](const ActivityResult& result) {
                            if (result.isCancelled) {
-                             onGoHome();
+                             // Back from this page returns to its entry point.
+                             leaveTo(ExitTo::FileBrowser);
                            } else {
                              onNetworkModeSelected(std::get<NetworkModeResult>(result.data).mode);
                            }
                          });
+}
+
+void CrossPointWebServerActivity::leaveTo(const ExitTo target) {
+  exitTo = target;
+  switch (target) {
+    case ExitTo::Home:
+      onGoHome();
+      break;
+    case ExitTo::FileTransfer:
+      // A fresh activity reopens this page; onExit reboots there first after Wi-Fi.
+      activityManager.goToFileTransfer();
+      break;
+    case ExitTo::FileBrowser:
+      activityManager.goToFileBrowser("/");
+      break;
+  }
 }
 
 void CrossPointWebServerActivity::onExit() {
@@ -129,7 +150,17 @@ void CrossPointWebServerActivity::onExit() {
       WiFi.disconnect(false);
     }
     delay(30);
-    silentRestart();
+    switch (exitTo) {
+      case ExitTo::FileTransfer:
+        silentRestartToFileTransfer();
+        break;
+      case ExitTo::FileBrowser:
+        silentRestartToFileBrowser();
+        break;
+      case ExitTo::Home:
+        silentRestart();
+        break;
+    }
   }
 
   LOG_DBG("WEBACT", "Free heap at onExit end: %d bytes", ESP.getFreeHeap());
@@ -160,13 +191,13 @@ void CrossPointWebServerActivity::onNetworkModeSelected(const NetworkMode mode) 
   LOG_DBG("WEBACT", "Network mode selected: %s", modeName);
 
   // The OPDS browser joins Wi-Fi itself. Wi-Fi is still on if the user backed
-  // out of Join Network; turn it off so onExit does not restart to Home.
+  // out of Join Network; turn it off so onExit does not restart the device.
   if (mode == NetworkMode::OPDS_BROWSER) {
     if (WiFi.getMode() != WIFI_MODE_NULL) {
       WiFi.disconnect(false);
       WiFi.mode(WIFI_OFF);
     }
-    activityManager.goToBrowser();
+    activityManager.goToBrowser(/*fromFileTransfer=*/true);
     return;
   }
 
@@ -181,19 +212,8 @@ void CrossPointWebServerActivity::onNetworkModeSelected(const NetworkMode mode) 
   isApMode = (mode == NetworkMode::CREATE_HOTSPOT);
 
   if (mode == NetworkMode::CONNECT_CALIBRE) {
-    startActivityForResult(
-        std::make_unique<CalibreConnectActivity>(renderer, mappedInput), [this](const ActivityResult& result) {
-          state = WebServerActivityState::MODE_SELECTION;
-
-          startActivityForResult(std::make_unique<NetworkModeSelectionActivity>(renderer, mappedInput),
-                                 [this](const ActivityResult& result) {
-                                   if (result.isCancelled) {
-                                     onGoHome();
-                                   } else {
-                                     onNetworkModeSelected(std::get<NetworkModeResult>(result.data).mode);
-                                   }
-                                 });
-        });
+    startActivityForResult(std::make_unique<CalibreConnectActivity>(renderer, mappedInput),
+                           [this](const ActivityResult&) { showModeSelection(); });
     return;
   }
 
@@ -235,16 +255,7 @@ void CrossPointWebServerActivity::onWifiSelectionComplete(const bool connected) 
     startWebServer();
   } else {
     // User cancelled - go back to mode selection
-    state = WebServerActivityState::MODE_SELECTION;
-
-    startActivityForResult(std::make_unique<NetworkModeSelectionActivity>(renderer, mappedInput),
-                           [this](const ActivityResult& result) {
-                             if (result.isCancelled) {
-                               onGoHome();
-                             } else {
-                               onNetworkModeSelected(std::get<NetworkModeResult>(result.data).mode);
-                             }
-                           });
+    showModeSelection();
   }
 }
 
@@ -267,7 +278,7 @@ void CrossPointWebServerActivity::startAccessPoint() {
 
   if (!apStarted) {
     LOG_ERR("WEBACT", "ERROR: Failed to start Access Point!");
-    onGoHome();
+    leaveTo(ExitTo::FileTransfer);
     return;
   }
 
@@ -322,8 +333,9 @@ void CrossPointWebServerActivity::startWebServer() {
       delay(6);
       mappedInput.update(true);
     }
-    leaveRequested = leaveRequested || mappedInput.isPressed(MappedInputManager::Button::Back) ||
-                     mappedInput.wasPressed(MappedInputManager::Button::Back) || mappedInput.wasHomeGesture();
+    leaveHomeRequested = leaveHomeRequested || mappedInput.wasHomeGesture();
+    leaveRequested = leaveRequested || leaveHomeRequested || mappedInput.isPressed(MappedInputManager::Button::Back) ||
+                     mappedInput.wasPressed(MappedInputManager::Button::Back);
     return leaveRequested;
   });
   webServer->begin();
@@ -346,8 +358,8 @@ void CrossPointWebServerActivity::startWebServer() {
   } else {
     LOG_ERR("WEBACT", "ERROR: Failed to start web server!");
     webServer.reset();
-    // Go back on error
-    onGoHome();
+    // Go back to this page on error
+    leaveTo(ExitTo::FileTransfer);
   }
 }
 
@@ -365,7 +377,7 @@ void CrossPointWebServerActivity::loop() {
       if (millis() - lastWifiCheck > 2000) {  // Check every 2 seconds
         lastWifiCheck = millis();
         const wl_status_t wifiStatus = WiFi.status();
-        // Driver auto-reconnect handles retries; abandon (via onGoHome) only
+        // Driver auto-reconnect handles retries; abandon (back to this page) only
         // after WIFI_ABANDON_MS, otherwise the activity freezes on a blip.
         bool repaint = false;
         if (wifiStatus != WL_CONNECTED) {
@@ -379,7 +391,7 @@ void CrossPointWebServerActivity::loop() {
           if (millis() - firstDisconnectAt > WIFI_ABANDON_MS) {
             LOG_DBG("WEBACT", "WiFi unavailable for >%lu s; returning to network selection", WIFI_ABANDON_MS / 1000UL);
             state = WebServerActivityState::SHUTTING_DOWN;
-            onGoHome();
+            leaveTo(ExitTo::FileTransfer);
             return;
           }
         } else {
@@ -422,7 +434,7 @@ void CrossPointWebServerActivity::loop() {
       for (int i = 0; i < MAX_ITERATIONS && webServer->isRunning(); i++) {
         webServer->handleClient();
         if (leaveRequested) {
-          onGoHome();
+          leaveTo(leaveHomeRequested ? ExitTo::Home : ExitTo::FileTransfer);
           return;
         }
         // Reset watchdog every 32 iterations
@@ -436,8 +448,12 @@ void CrossPointWebServerActivity::loop() {
           mappedInput.update(true);
           // Home remains available now; other configured actions are deferred
           // to the next main-loop pass.
-          if (mappedInput.wasReleased(MappedInputManager::Button::Back) || mappedInput.wasHomeGesture()) {
-            onGoHome();
+          if (mappedInput.wasHomeGesture()) {
+            leaveTo(ExitTo::Home);
+            return;
+          }
+          if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
+            leaveTo(ExitTo::FileTransfer);
             return;
           }
         }
@@ -446,8 +462,12 @@ void CrossPointWebServerActivity::loop() {
     }
 
     // Also check outside the request-processing loop.
-    if (mappedInput.wasReleased(MappedInputManager::Button::Back) || mappedInput.wasHomeGesture()) {
-      onGoHome();
+    if (mappedInput.wasHomeGesture()) {
+      leaveTo(ExitTo::Home);
+      return;
+    }
+    if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
+      leaveTo(ExitTo::FileTransfer);
       return;
     }
   }

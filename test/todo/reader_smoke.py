@@ -24,7 +24,7 @@ for orientation in range(4):
         (sd/'.crosspoint/state.json').write_text(json.dumps({'openEpubPath':'/books/alpha.epub', 'lastSleepFromReader':True}))
         (sd/'.crosspoint/settings.json').write_text(json.dumps({'orientation':orientation}))
         script = ('0:WAIT:Rendered page;400:DOWN;400:WAIT:Rendered page;300:SHOT:' + str(artifacts/f'reader-{orientation}.bmp') +
-                  ';500:SWIPE:0.5,0.98,0.5,0.5;500:WAIT:Entering activity: Home;400:SHOT:' + str(artifacts/f'home-after-reader-{orientation}.bmp') + ';700:TAP:180,635;700:WAIT:Entering activity: Todo;300:QUIT')
+                  ';500:SWIPE:0.5,0.98,0.5,0.5;500:WAIT:Entering activity: Home;400:SHOT:' + str(artifacts/f'home-after-reader-{orientation}.bmp') + ';700:TAP:180,562;700:WAIT:Entering activity: Todo;300:QUIT')
         env = dict(os.environ, SDL_VIDEODRIVER='dummy', CROSSPOINT_SIM_SD=str(sd), CROSSPOINT_SIM_SCREEN_TEXT='1', CROSSPOINT_SIM_INPUT_SCRIPT=script)
         result = subprocess.run([str(root/'.pio/build/simulator_picco/program')], cwd=root, env=env, capture_output=True, text=True, timeout=45)
         output = result.stdout+result.stderr

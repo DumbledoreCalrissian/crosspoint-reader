@@ -44,7 +44,7 @@ def seed(sd, tasks):
         version=1, generation=1, nextId=len(tasks) + 1, checksum=checksum, tasks=tasks)))
 
 
-home = '0:WAIT:Entering activity: Home;400:TAP:180,635;400:WAIT:Entering activity: Todo;'
+home = '0:WAIT:Entering activity: Home;400:TAP:180,562;400:WAIT:Entering activity: Todo;'
 with tempfile.TemporaryDirectory(prefix='checkbox-workflow-', dir=artifacts) as directory:
     sd = Path(directory)
     run('create', home + '300:WAIT:SCREEN:.*No tasks yet;400:TAP:180,130;400:WAIT:Entering activity: KeyboardEntry;'

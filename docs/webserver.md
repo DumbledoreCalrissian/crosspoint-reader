@@ -20,7 +20,9 @@ networks or in hotspot mode when you control who is connected.
 
 ## Starting File Transfer
 
-1. From the Home screen, select **File Transfer**.
+1. Open **Browse Files**. At the SD card's root folder, select the File Transfer
+   icon at the top right of the header (tap it, or move the selection up past the
+   first entry and press Confirm).
 2. Choose one of the available modes:
 
 | Mode | Use when |

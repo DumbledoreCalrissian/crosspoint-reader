@@ -28,6 +28,8 @@ class CatalogActivity : public UiListActivity {
   void onExit() override;
 
  protected:
+  // Set before leaving for the File Transfer page: onExit reboots there after Wi-Fi.
+  bool restartToFileTransfer = false;
   using UiListActivity::UiListActivity;
   static constexpr freeink::ui::ActionId ACTION_SEARCH = ACTION_USER;
   static constexpr freeink::ui::ActionId ACTION_CANCEL = ACTION_USER + 1;

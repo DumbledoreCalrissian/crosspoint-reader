@@ -78,8 +78,10 @@ StrId feedFailureMessage() {
 }  // namespace
 
 OpdsBookBrowserActivity::OpdsBookBrowserActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
-                                                 OpdsServer server)
-    : CatalogActivity("OpdsBookBrowser", renderer, mappedInput), server(std::move(server)) {}
+                                                 OpdsServer server, const bool fromFileTransfer)
+    : CatalogActivity("OpdsBookBrowser", renderer, mappedInput),
+      fromFileTransfer(fromFileTransfer),
+      server(std::move(server)) {}
 
 void OpdsBookBrowserActivity::onEnter() {
   CatalogActivity::onEnter();
@@ -466,7 +468,13 @@ void OpdsBookBrowserActivity::navigateToEntry(const OpdsEntry& entry) {
 
 void OpdsBookBrowserActivity::navigateBack() {
   if (navigationHistory.empty() || mappedInput.getHeldTime() >= GO_HOME_MS) {
-    onGoHome();
+    // A long press always goes Home; a short one returns where the browser opened.
+    if (fromFileTransfer && mappedInput.getHeldTime() < GO_HOME_MS) {
+      restartToFileTransfer = true;
+      activityManager.goToFileTransfer();
+    } else {
+      onGoHome();
+    }
     return;
   }
   currentPath = navigationHistory.back();

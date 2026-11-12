@@ -30,7 +30,7 @@
 #include "fontIds.h"
 
 int HomeActivity::getMenuItemCount() const {
-  int count = 6;  // File Browser, Library, File transfer, Settings, Todo, Pomodoro
+  int count = 5;  // File Browser, Library, Settings, Todo, Pomodoro
   if (!recentBooks.empty()) {
     count += recentBooks.size();
   }
@@ -364,9 +364,6 @@ void HomeActivity::loop() {
       case HomeMenuItem::OPDS_BROWSER:
         onOpdsBrowserOpen();
         break;
-      case HomeMenuItem::FILE_TRANSFER:
-        onFileTransferOpen();
-        break;
       case HomeMenuItem::TODO:
         if (auto todo = makeUniqueNoThrow<TodoActivity>(renderer, mappedInput)) {
           activityManager.replaceActivity(std::move(todo));
@@ -594,9 +591,10 @@ void HomeActivity::render(RenderLock&&) {
                           std::bind(&HomeActivity::storeCoverBuffer, this));
 
   // Build menu items dynamically
-  std::vector<const char*> menuItems = {tr(STR_BROWSE_FILES),   tr(STR_LIBRARY), tr(STR_FILE_TRANSFER),
-                                        tr(STR_SETTINGS_TITLE), tr(STR_TODO),    tr(STR_POMODORO)};
-  std::vector<UIIcon> menuIcons = {Folder, Library, Transfer, Settings, Todo, Pomodoro};
+  // File Transfer lives in the file browser's root header.
+  std::vector<const char*> menuItems = {tr(STR_BROWSE_FILES), tr(STR_LIBRARY), tr(STR_SETTINGS_TITLE), tr(STR_TODO),
+                                        tr(STR_POMODORO)};
+  std::vector<UIIcon> menuIcons = {Folder, Library, Settings, Todo, Pomodoro};
 
   if (slotItem() != HomeMenuItem::NONE) {
     menuItems.insert(menuItems.begin() + 2, hasPlugins ? tr(STR_PLUGINS) : tr(STR_OPDS_BROWSER));
@@ -654,8 +652,6 @@ void HomeActivity::onFileBrowserOpen() { activityManager.goToFileBrowser(); }
 void HomeActivity::onLibraryOpen() { activityManager.goToLibrary(); }
 
 void HomeActivity::onSettingsOpen() { activityManager.goToSettings(); }
-
-void HomeActivity::onFileTransferOpen() { activityManager.goToFileTransfer(); }
 
 void HomeActivity::onOpdsBrowserOpen() { activityManager.goToBrowser(); }
 

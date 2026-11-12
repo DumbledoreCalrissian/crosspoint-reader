@@ -56,7 +56,7 @@ void UsbDriveActivity::loop() {
     } else if (millis() - hostSuspendStartedAt >= HOST_SUSPEND_TIMEOUT_MS) {
       LOG_INF("USB", "USB Drive host suspend timed out; ending session");
       // endUsbDrive() soft-disconnects before teardown and reboot.
-      restartToHome();
+      restartAfterSession();
       return;
     }
   } else {
@@ -65,13 +65,13 @@ void UsbDriveActivity::loop() {
 
   if (state == State::WaitingForHost && millis() - hostWaitStartedAt >= HOST_WAIT_TIMEOUT_MS) {
     LOG_INF("USB", "USB Drive host wait timed out");
-    restartToHome();
+    restartAfterSession();
     return;
   }
 
   if (startFailed && millis() - startFailureStartedAt >= START_FAILURE_TIMEOUT_MS) {
     LOG_INF("USB", "USB Drive startup failure timed out");
-    restartToHome();
+    restartAfterSession();
     return;
   }
 
@@ -85,20 +85,24 @@ void UsbDriveActivity::loop() {
       }
     } else if (millis() - forcedDisconnectRequestedAt >= FORCED_DISCONNECT_TIMEOUT_MS) {
       LOG_ERR("USB", "USB Drive host disconnect timed out; forcing restart");
-      restartToHome();
+      restartAfterSession();
     }
     return;
   }
 
   const bool canExitWithInput = state == State::WaitingForHost || startFailed;
+  if (canExitWithInput && mappedInput.wasHomeGesture()) {
+    restartAfterSession(/*toHome=*/true);
+    return;
+  }
   if (canExitWithInput && (mappedInput.wasPressed(MappedInputManager::Button::Back) ||
-                           mappedInput.wasPressed(MappedInputManager::Button::Power) || mappedInput.wasHomeGesture())) {
-    restartToHome();
+                           mappedInput.wasPressed(MappedInputManager::Button::Power))) {
+    restartAfterSession();
     return;
   }
 
   if (state == State::Ejected || state == State::Disconnected || state == State::Unsupported) {
-    restartToHome();
+    restartAfterSession();
   }
 }
 
@@ -183,10 +187,14 @@ void UsbDriveActivity::buildDriveScreen(UiScreen& screen) const {
   }
 }
 
-void UsbDriveActivity::restartToHome() {
+void UsbDriveActivity::restartAfterSession(const bool toHome) {
   if (restartRequested) return;
   restartRequested = true;
   Storage.endUsbDrive();
   delay(20);
-  restartToHomeAfterStorageHandoff();
+  if (toHome) {
+    restartToHomeAfterStorageHandoff();
+  } else {
+    restartToFileTransferAfterStorageHandoff();
+  }
 }

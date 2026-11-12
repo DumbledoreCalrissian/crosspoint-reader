@@ -12,6 +12,7 @@
 #include "PomodoroSettingsActivity.h"
 #include "components/UIScale.h"
 #include "components/UITheme.h"
+#include "components/UiAppHelpers.h"
 #include "components/icons/headerIcons.h"
 #include "components/icons/listIcons.h"
 #include "fontIds.h"
@@ -22,23 +23,6 @@ namespace fui = freeink::ui;
 namespace {
 constexpr int16_t PROGRESS_HEIGHT = 12;
 
-// The theme's list row styles with its selection style applied, matching the
-// selected row in Settings lists. Mirrors FreeInkApp::list's expansion
-// (FreeInkApp.h), except: marker styles fall back to the light pill, and
-// focused/active (tap flash) use the selected paint.
-fui::StyleSet selectionStyles(const fui::ThemeTokens& theme) {
-  fui::StyleSet styles = theme.listRow.unset() ? fui::defaultListRowStyles() : theme.listRow;
-  if (theme.listSelectionStyle != fui::SelectionStyle::InvertFill) {
-    // Marker styles have no fill to borrow; use the light pill instead.
-    styles.selected.background = fui::Paint::dither(fui::Color::LightGray);
-    styles.selected.foreground = fui::Paint::solid(fui::Color::Black);
-  }
-  styles.focused = styles.selected;
-  styles.active = styles.selected;
-  styles.explicitlySet = true;
-  fui::setStyleRadius(styles, theme.listRowRadius);
-  return styles;
-}
 constexpr int16_t DOT_SIZE = 18;
 constexpr int16_t DOT_GAP = 12;
 }  // namespace
@@ -249,7 +233,7 @@ void PomodoroActivity::buildHeader(UiScreen& screen) {
   header.trailingStyles = fui::plainStyles(fui::Paint::solid(fui::Color::Black));
   if (visibleFocus() == Focus::Settings) {
     // The header button has no selected state; paint its normal style as the selection.
-    header.trailingStyles = selectionStyles(theme);
+    header.trailingStyles = themedSelectionStyles(theme);
     header.trailingStyles.normal = header.trailingStyles.selected;
   }
   GUI.applyHeaderStatus(renderer, header);
@@ -269,7 +253,7 @@ void PomodoroActivity::buildControls(UiScreen& screen) {
   const auto& theme = screen.theme();
   const auto stroke = static_cast<uint8_t>(std::max(2, UITheme::getInstance().getMetrics().popupFrameThickness));
   // Outlined buttons whose focus paint is the theme's list selection.
-  fui::StyleSet styles = selectionStyles(theme);
+  fui::StyleSet styles = themedSelectionStyles(theme);
   for (fui::BoxStyle* box : {&styles.normal, &styles.selected, &styles.focused, &styles.active, &styles.disabled}) {
     box->border = fui::Paint::solid(fui::Color::Black);
     box->borderWidth = stroke;

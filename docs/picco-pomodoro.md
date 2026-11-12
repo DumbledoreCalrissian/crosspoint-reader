@@ -1,7 +1,7 @@
 # Foreground Pomodoro
 
 Open **Pomodoro** on Home. It uses the native header, theme and touch buttons.
-When a list Home has more shortcuts than fit (for example Lyra Extended, or
+When a list Home has more shortcuts than fit (for example Lyra Extended with
 Plugins enabled), a scroll indicator like the Settings lists' appears at the
 menu's edge; swipe or use Up/Down to reveal the rest. Rows stay in place while
 tapping a visible item. Cover-grid Home has a timer icon.
@@ -123,7 +123,7 @@ Physical checks remain the owner's responsibility:
 
 1. In each theme, open Pomodoro by touch, including a Home with Plugins enabled.
    All visible shortcuts must activate the item touched; swiping reveals overflow.
-   In Lyra Extended, a scroll indicator must show at the menu's right edge.
+   In Lyra Extended with Plugins, a scroll indicator must show at the menu's right edge.
 2. Start, pause, resume and reset; change each timer setting, then leave and reopen. Check the displayed phase,
    count, native header and finger-sized controls. Repeat after reading in each
    of the four orientations; normal application UI returns to portrait.

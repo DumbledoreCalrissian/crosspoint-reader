@@ -17,7 +17,6 @@
 #include "icons/pomodoro.h"
 #include "icons/settings2.h"
 #include "icons/todo.h"
-#include "icons/transfer.h"
 #include "util/BookProgress.h"
 
 namespace fui = freeink::ui;
@@ -285,10 +284,10 @@ void CoverGridHomeUi::drawGrid(UiScreen& screen) {
 }
 
 void CoverGridHomeUi::drawTabs(UiScreen& screen, fui::Rect rect) {
-  static constexpr const uint8_t* ICONS[] = {FolderIcon,    LibraryIcon, BlocksIcon,  TransferIcon,
+  static constexpr const uint8_t* ICONS[] = {FolderIcon,    LibraryIcon, BlocksIcon,
                                              Settings2Icon, TodoIcon,    PomodoroIcon};
   int count = 0;
-  for (int i = 0; i < 7; ++i) {
+  for (int i = 0; i < 6; ++i) {
     if (i == 2 && slotTab == SlotTab::NONE) continue;
     auto& tab = tabItems[count];
     tab.value = books->size() + count;

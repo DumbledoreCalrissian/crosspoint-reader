@@ -58,12 +58,17 @@ void CalibreConnectActivity::onExit() {
   if (WiFi.getMode() != WIFI_MODE_NULL) {
     WiFi.disconnect(false);
     delay(30);
-    silentRestart();
+    if (backToFileTransfer) {
+      silentRestartToFileTransfer();
+    } else {
+      silentRestart();
+    }
   }
 }
 
 void CalibreConnectActivity::onWifiSelectionComplete(const bool connected) {
   if (!connected) {
+    backToFileTransfer = true;
     finish();
     return;
   }
@@ -167,6 +172,7 @@ void CalibreConnectActivity::loop() {
   }
 
   if (exitRequested) {
+    backToFileTransfer = true;
     finish();
     return;
   }

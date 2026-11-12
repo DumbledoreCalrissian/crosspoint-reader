@@ -42,8 +42,8 @@ def run(theme, case, tasks, *, damaged=False, hide_battery=False):
             (sd / '.crosspoint/todo-a.json').write_bytes(saved)
         # Only QA entry uses the provisional Confirm key on list Home themes.
         # The dedicated simulator.py regression exercises touch-only navigation.
-        entry = ('300:TAP:365,760;' if theme == 4 else
-                 '300:DOWN;600:DOWN;900:DOWN;1200:DOWN;1500:ENTER;')
+        entry = ('300:TAP:334,760;' if theme == 4 else
+                 '300:DOWN;600:DOWN;900:DOWN;1200:ENTER;')
         home = ART / f'{name}-home.bmp'
         paths = [ART / f'{name}.bmp']
         script = f'0:WAIT:Entering activity: Home;200:SHOT:{home};' + entry + '0:WAIT:Entering activity: Todo;'

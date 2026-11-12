@@ -27,6 +27,8 @@ class CalibreConnectActivity final : public Activity {
   unsigned long lastCompleteAt = 0;
   unsigned long lastProcessedCompleteAt = 0;  // Track which server value we've already processed
   bool exitRequested = false;
+  // Back (not the Home gesture) returns to the File Transfer page.
+  bool backToFileTransfer = false;
 
   void renderServerRunning() const;
 

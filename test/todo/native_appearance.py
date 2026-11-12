@@ -52,10 +52,10 @@ for theme, name, native_y, new_y, task_y in THEMES:
     before = ART / f'{name}-todo-before.bmp'
     focused = ART / f'{name}-todo-focused.bmp'
     capture(name + '-settings', theme,
-            '0:WAIT:Entering activity: Home;300:DOWN;600:DOWN;900:DOWN;1200:ENTER;'
+            '0:WAIT:Entering activity: Home;300:DOWN;600:DOWN;900:ENTER;'
             f'1200:WAIT:Entering activity: SettingsList;400:SHOT:{reference};700:QUIT')
     capture(name + '-todo', theme,
-            '0:WAIT:Entering activity: Home;300:DOWN;600:DOWN;900:DOWN;1200:DOWN;1500:ENTER;'
+            '0:WAIT:Entering activity: Home;300:DOWN;600:DOWN;900:DOWN;1200:ENTER;'
             f'1500:WAIT:Entering activity: Todo;400:SHOT:{before};700:TAP:55,{task_y};'
             f'1200:SHOT:{focused};1500:ENTER;1500:WAIT:Entering activity: KeyboardEntry;'
             '300:TAP:30,64;700:QUIT',

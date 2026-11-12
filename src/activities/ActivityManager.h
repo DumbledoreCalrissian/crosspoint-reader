@@ -18,17 +18,7 @@
 class Activity;    // forward declaration
 class RenderLock;  // forward declaration
 
-enum class HomeMenuItem {
-  NONE,
-  FILE_BROWSER,
-  LIBRARY,
-  PLUGINS,
-  OPDS_BROWSER,
-  FILE_TRANSFER,
-  SETTINGS_MENU,
-  TODO,
-  POMODORO
-};
+enum class HomeMenuItem { NONE, FILE_BROWSER, LIBRARY, PLUGINS, OPDS_BROWSER, SETTINGS_MENU, TODO, POMODORO };
 
 /**
  * ActivityManager
@@ -101,7 +91,8 @@ class ActivityManager {
   void goToSettings(SettingsSection openSection = SettingsSection::End);
   void goToFileBrowser(std::string path = {});
   void goToLibrary();
-  void goToBrowser();
+  // fromFileTransfer: Back at the top level returns to the File Transfer page.
+  void goToBrowser(bool fromFileTransfer = false);
   void goToPlugins();
   void goToReader(std::string path, bool allowFastInitialRefresh = false);
   void goToSleep(bool fromTimeout = false);

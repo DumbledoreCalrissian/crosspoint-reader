@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
@@ -22,6 +23,17 @@ class FileBrowserActivity final : public UiListActivity {
   void deleteSelected();
 
   Mode mode = Mode::Books;
+
+  // Header actions. File Transfer shows only at the root of the book browser.
+  static constexpr freeink::ui::ActionId ACTION_BACK = ACTION_USER;
+  static constexpr freeink::ui::ActionId ACTION_FILE_TRANSFER = ACTION_USER + 1;
+  // Button focus is on the header's File Transfer icon instead of a row.
+  std::atomic<bool> transferFocused{false};
+  bool showsFileTransfer() const { return mode == Mode::Books && basepath == "/"; }
+  bool iconFocused() const { return transferFocused && showsFileTransfer(); }
+  static void headerAction(const freeink::ui::ActionEvent& event, void* user);
+  void buildHeader(UiScreen& screen);
+  void navigateBack();
 
   // Files state
   std::string basepath = "/";
@@ -61,9 +73,11 @@ class FileBrowserActivity final : public UiListActivity {
   // root), and Confirm activates on release while a hold opens file actions.
   bool handleCustomInput() override;
   bool handleButtons() override;
-  // Header shows the current folder name (battery indicator via GUI.drawHeader);
+  // The header (folder name, status, actions) is built with the screen;
   // footer labels depend on path depth and picker mode.
-  void drawChrome() override;
+  void drawChrome() override {}
+  // Up/Down also reach the root header's File Transfer icon.
+  void navigateButtons() override;
   void drawFooter() override;
   void activateSelected();
 

@@ -13,7 +13,8 @@
  */
 class OpdsServerListActivity final : public UiListActivity {
  public:
-  explicit OpdsServerListActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, bool pickerMode = false);
+  explicit OpdsServerListActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, bool pickerMode = false,
+                                  bool fromFileTransfer = false);
 
   void onEnter() override;
   void render(RenderLock&&) override;
@@ -29,6 +30,8 @@ class OpdsServerListActivity final : public UiListActivity {
   const char* headerTitle() const override;
 
   bool pickerMode = false;
+  // Picker opened from File Transfer: Back returns there and the browser keeps the origin.
+  bool fromFileTransfer = false;
   OptionPopup optionPopup;
 
   // Row structure (labels, actionValue; server subtitles), rebuilt only when

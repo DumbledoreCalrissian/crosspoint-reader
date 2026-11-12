@@ -27,7 +27,8 @@ class UsbDriveActivity final : public Activity, private UiAppHost {
 
   static void driveScreen(UiScreen& screen, void* user);
   void buildDriveScreen(UiScreen& screen) const;
-  void restartToHome();
+  // Session end: back to the File Transfer page, or Home for the Home gesture.
+  void restartAfterSession(bool toHome = false);
 
   State state = State::Unsupported;
   bool preparing = true;

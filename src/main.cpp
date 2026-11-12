@@ -123,7 +123,9 @@ constexpr uint32_t SILENT_REBOOT_TARGET_HOME = 0;
 constexpr uint32_t SILENT_REBOOT_TARGET_READER = 1;
 constexpr uint32_t SILENT_REBOOT_TARGET_SETTINGS = 2;
 constexpr uint32_t SILENT_REBOOT_TARGET_JOIN_NETWORK = 3;
-constexpr uint32_t SILENT_REBOOT_TARGET_MAX = SILENT_REBOOT_TARGET_JOIN_NETWORK;
+constexpr uint32_t SILENT_REBOOT_TARGET_FILE_TRANSFER = 4;
+constexpr uint32_t SILENT_REBOOT_TARGET_FILE_BROWSER = 5;
+constexpr uint32_t SILENT_REBOOT_TARGET_MAX = SILENT_REBOOT_TARGET_FILE_BROWSER;
 constexpr uint32_t SILENT_REBOOT_LIGHT_ON = 1U << 0;
 
 // How the device is coming back to life, resolved once at boot. Both resume
@@ -177,6 +179,10 @@ void silentRestartToReader() { silentRestartTo(SILENT_REBOOT_TARGET_READER, "rea
 
 void silentRestartToSettings() { silentRestartTo(SILENT_REBOOT_TARGET_SETTINGS, "settings"); }
 
+void silentRestartToFileTransfer() { silentRestartTo(SILENT_REBOOT_TARGET_FILE_TRANSFER, "file-transfer"); }
+
+void silentRestartToFileBrowser() { silentRestartTo(SILENT_REBOOT_TARGET_FILE_BROWSER, "file-browser"); }
+
 void silentRestartToJoinNetwork() {
   if (deepSleepInProgress) return;
 #if FREEINK_CAP_TOUCH
@@ -192,14 +198,20 @@ void silentRestartToJoinNetwork() {
   ESP.restart();
 }
 
-void restartToHomeAfterStorageHandoff() {
+static void restartAfterStorageHandoff(const uint32_t target, const char* targetName) {
   if (deepSleepInProgress) return;  // sleeping supersedes the storage handoff reboot
-  armSilentReboot(SILENT_REBOOT_TARGET_HOME);
-  LOG_DBG("MAIN", "Restart after storage handoff (target=home)");
+  armSilentReboot(target);
+  LOG_DBG("MAIN", "Restart after storage handoff (target=%s)", targetName);
   GUI.drawPopup(renderer, tr(STR_LOADING_POPUP));
   delay(50);
   handoffUsbOtgToSerialJtag();
   ESP.restart();
+}
+
+void restartToHomeAfterStorageHandoff() { restartAfterStorageHandoff(SILENT_REBOOT_TARGET_HOME, "home"); }
+
+void restartToFileTransferAfterStorageHandoff() {
+  restartAfterStorageHandoff(SILENT_REBOOT_TARGET_FILE_TRANSFER, "file-transfer");
 }
 
 void toggleFrontlight() {
@@ -777,6 +789,12 @@ void setup() {
     // Rebooted on the way *into* File Transfer > Join Network for a fresh heap;
     // resume that flow directly instead of landing on home.
     activityManager.goToJoinNetwork();
+  } else if (resume == BootResume::Silent && snapshotTarget == SILENT_REBOOT_TARGET_FILE_TRANSFER) {
+    // Back from a File Transfer option that used Wi-Fi or USB storage.
+    activityManager.goToFileTransfer();
+  } else if (resume == BootResume::Silent && snapshotTarget == SILENT_REBOOT_TARGET_FILE_BROWSER) {
+    // Back from the File Transfer page after Wi-Fi was used: its entry point.
+    activityManager.goToFileBrowser("/");
   } else if (resume == BootResume::Silent && snapshotTarget == SILENT_REBOOT_TARGET_SETTINGS) {
     // Back out of the WiFi rows and the user is where they left off, not on Home.
     activityManager.goToSettings(SettingsSection::Network);

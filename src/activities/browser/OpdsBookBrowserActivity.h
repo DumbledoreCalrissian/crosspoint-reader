@@ -20,7 +20,8 @@ struct DetailsSpec;
  */
 class OpdsBookBrowserActivity final : public CatalogActivity {
  public:
-  explicit OpdsBookBrowserActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, OpdsServer server);
+  explicit OpdsBookBrowserActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, OpdsServer server,
+                                   bool fromFileTransfer = false);
 
   void onEnter() override;
   void onExit() override;
@@ -29,6 +30,8 @@ class OpdsBookBrowserActivity final : public CatalogActivity {
   // Subclass actions after the base's ACTION_SEARCH/ACTION_CANCEL.
   static constexpr freeink::ui::ActionId ACTION_PAGE = ACTION_USER + 2;
 
+  // Opened from File Transfer: Back at the catalog root returns there.
+  bool fromFileTransfer = false;
   std::vector<OpdsEntry> entries;
   // Row buffer, built whenever entries changes (fetchFeed()/releaseEntries())
   // so buildBrowsingScreen() reuses it on every repaint instead of rebuilding

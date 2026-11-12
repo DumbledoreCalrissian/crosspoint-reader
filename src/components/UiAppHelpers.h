@@ -61,6 +61,25 @@ inline void applySharedUiTheme(App& app, const freeink::ui::GfxRendererTarget& t
   app.setThemeRef(&sharedUiThemeCell());
 }
 
+// The theme's list row styles with its selection style applied, for controls
+// that show focus like the selected row in Settings lists. Mirrors
+// FreeInkApp::list's expansion (FreeInkApp.h), except: marker styles fall back
+// to the light pill, and focused/active (tap flash) use the selected paint.
+inline freeink::ui::StyleSet themedSelectionStyles(const freeink::ui::ThemeTokens& theme) {
+  namespace fui = freeink::ui;
+  fui::StyleSet styles = theme.listRow.unset() ? fui::defaultListRowStyles() : theme.listRow;
+  if (theme.listSelectionStyle != fui::SelectionStyle::InvertFill) {
+    // Marker styles have no fill to borrow; use the light pill instead.
+    styles.selected.background = fui::Paint::dither(fui::Color::LightGray);
+    styles.selected.foreground = fui::Paint::solid(fui::Color::Black);
+  }
+  styles.focused = styles.selected;
+  styles.active = styles.selected;
+  styles.explicitlySet = true;
+  fui::setStyleRadius(styles, theme.listRowRadius);
+  return styles;
+}
+
 // Bind the uiScale fonts before FreeInkApp's constructor derives its theme
 // metrics from the body font's line height.
 inline freeink::ui::GfxRendererTarget makeUiTarget(const GfxRenderer& renderer) {

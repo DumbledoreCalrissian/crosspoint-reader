@@ -25,7 +25,11 @@ void CatalogActivity::onExit() {
   if (WiFi.getMode() != WIFI_MODE_NULL) {
     WiFi.disconnect(false);
     delay(30);
-    silentRestart();
+    if (restartToFileTransfer) {
+      silentRestartToFileTransfer();
+    } else {
+      silentRestart();
+    }
   }
 }
 
