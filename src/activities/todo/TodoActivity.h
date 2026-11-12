@@ -23,6 +23,7 @@ class TodoActivity final : public UiListActivity {
   unsigned selectedCount() const;
   int listCount() const override;
   void buildScreen(UiScreen& screen) override;
+  void buildHeader(UiScreen& screen);
   void activateIndex(int index) override;
   void onBackButton() override;
   void enterText(uint32_t id);

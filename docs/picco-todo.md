@@ -26,6 +26,23 @@ invalid UTF-8, and over-limit text are rejected. The keyboard enforces the byte
 limit without splitting a character. There are no background tasks or network
 connections for Todo, and each accepted change is saved immediately.
 
+## Native visual styling
+
+Todo uses Library's header geometry, theme title alignment, bezel insets and
+battery/clock status strip. Clock visibility follows CrossPoint's existing
+Display setting. The available New task row is bold, and a thin text-width underline
+marks persistent focus; the active theme still supplies tap feedback.
+Deletion uses the same header/list alignment. Its bottom action is outlined
+when available and smaller plain text while no tasks are selected. Checkboxes
+and the existing one-pixel completed-text strike-through retain their geometry.
+Empty lists use native centered text; error messages align with the list’s text
+insets and replace the empty placeholder when data cannot be loaded.
+
+There is one fixed UI font tier in this firmware checkout (`UIScale.h`); no
+UI-scale selector is present. Classic, Lyra, Lyra Extended, RoundedRaff and
+Cover Grid use the current theme metrics. No new SDK changes, settings or
+persistent state are needed for this visual pass.
+
 ## Storage and recovery
 
 On the microSD: `/.crosspoint/todo-a.json` and `/.crosspoint/todo-b.json`.
@@ -92,11 +109,16 @@ sh test/todo/run.sh
 ../.venv/bin/python test/todo/simulator.py
 ../.venv/bin/python test/todo/reader_smoke.py
 sh freeink-sdk/libs/ui/FreeInkUI/test/host/run.sh
+../.venv/bin/python test/todo/visuals.py
 ```
 
 The first runs model/persistence checks under AddressSanitizer and UBSan using
 ArduinoJson and an injected storage adapter. The second uses real firmware,
-keyboard, dialogs and host-backed SD with scripted SDL touch events. Test data
+keyboard, dialogs and host-backed SD with scripted SDL touch events. The visual capture script records empty, populated, wrapped/completed, deletion
+selection and damaged-data states across all five themes, verifies that task
+snapshots are unchanged, and exports PNGs for inspection. Its list-Home entry
+uses the simulator Confirm key for QA; the dedicated workflow test remains
+touch-only. Test data
 and logs stay under the parent workspace's `qa-artifacts/` and `logs/`.
 
 Physical Picco validation remains required: touch calibration, all orientations,

@@ -80,6 +80,7 @@ void TodoActivity::provideRow(void* context, uint16_t index, fui::ListItem& item
   item.enabled = self.store.canEdit();
   if (self.view == View::Tasks && index == 0) {
     item.label = tr(STR_TODO_NEW);
+    item.bold = item.enabled;
     return;
   }
   const auto taskIndex = self.view == View::Tasks ? index - 1 : index;
@@ -91,13 +92,23 @@ void TodoActivity::provideRow(void* context, uint16_t index, fui::ListItem& item
   item.strikethrough = self.view == View::Tasks && task->completed;
 }
 
-void TodoActivity::buildScreen(UiScreen& screen) {
+void TodoActivity::buildHeader(UiScreen& screen) {
   const auto& metrics = UITheme::getInstance().getMetrics();
-  screen.setContentMarginFromScreen(fui::Insets{static_cast<int16_t>(metrics.topPadding), 0, 0, 0});
+  const auto& theme = screen.theme();
   fui::HeaderProps header;
   header.title = view == View::Tasks ? tr(STR_TODO) : tr(STR_TODO_DELETE_TITLE);
-  header.centered = true;
+  header.titleText = theme.titleText;
+  header.titleText.align = theme.headerTitleAlign;
+  header.sidePadding = theme.headerSidePadding;
+  header.minTouchSize = theme.minTouchSize;
+  header.styles = theme.popup;
+  if (header.styles.normal.border.kind == fui::PaintKind::None && theme.headerUnderline > 0) {
+    header.styles.normal.border = fui::Paint::solid(fui::Color::Black);
+    header.styles.normal.borderWidth = theme.headerUnderline;
+  }
   header.borderEdges = fui::EdgeBottom;
+  header.trailingStyles = fui::plainStyles(fui::Paint::solid(fui::Color::Black));
+  GUI.applyHeaderStatus(renderer, header);
   header.leadingIcon = fui::bitmapFromIcon(icon_header_back_32);
   header.leadingAction = ACTION_BACK;
   if (view == View::Tasks) {
@@ -105,8 +116,21 @@ void TodoActivity::buildScreen(UiScreen& screen) {
     header.trailingAction = ACTION_DELETE_MODE;
     header.trailingEnabled = store.canEdit() && store.model().size();
   }
-  screen.header(header);
-  screen.spacer(screen.theme().spaceMd);
+  const auto frame = screen.frame().screen();
+  const auto band = BaseTheme::headerBand(renderer,
+                                          fui::Rect{frame.x, static_cast<int16_t>(metrics.topPadding), frame.width,
+                                                    static_cast<int16_t>(metrics.headerHeight)},
+                                          header);
+  fui::header(screen.frame(), band, header);
+}
+
+void TodoActivity::buildScreen(UiScreen& screen) {
+  const auto& metrics = UITheme::getInstance().getMetrics();
+  const auto& theme = screen.theme();
+  buildHeader(screen);
+  screen.setContentMarginFromScreen(
+      fui::Insets{static_cast<int16_t>(metrics.topPadding + metrics.headerHeight), 0, 0, 0});
+  screen.spacer(static_cast<int16_t>(metrics.verticalSpacing));
 
   if (view == View::DeleteSelection) {
     std::snprintf(deleteLabel, sizeof(deleteLabel), tr(STR_TODO_DELETE_SELECTED), selectedCount());
@@ -114,8 +138,16 @@ void TodoActivity::buildScreen(UiScreen& screen) {
     button.label = deleteLabel;
     button.action = ACTION_DELETE_SELECTED;
     button.enabled = selection != 0 && store.canEdit();
+    button.styles = theme.button;
+    button.styles.normal.border = button.styles.normal.foreground;
+    button.styles.normal.borderWidth = 1;
+    button.styles.disabled.border = fui::Paint::none();
+    button.styles.disabled.borderWidth = 0;
+    button.text = button.enabled ? theme.bodyText : theme.smallText;
+    button.radius = theme.listRowRadius;
     const int16_t height = std::max<int16_t>(screen.theme().rowHeight, screen.theme().minTouchSize);
-    const auto rect = screen.takeBottom(height, screen.theme().spaceMd);
+    const auto inset = std::max<int16_t>(0, theme.listInset);
+    const auto rect = screen.takeBottom(height, theme.spaceMd).inset(fui::Insets{0, inset, 0, inset});
     screen.button(button, rect);
   }
   if (const char* error = statusText()) {
@@ -124,7 +156,9 @@ void TodoActivity::buildScreen(UiScreen& screen) {
     text.showCaret = false;
     text.style = screen.theme().smallText;
     text.style.maxLines = 3;
-    screen.textArea(text, static_cast<int16_t>(uiTarget.lineHeight(text.style.font) * 3));
+    const auto inset = static_cast<int16_t>(theme.listInset + theme.listSidePadding);
+    const auto band = screen.takeTop(static_cast<int16_t>(uiTarget.lineHeight(text.style.font) * 3));
+    fui::textArea(screen.frame(), band.inset(fui::Insets{0, inset, 0, inset}), text);
   }
 
   fui::ListProps props;
@@ -142,13 +176,15 @@ void TodoActivity::buildScreen(UiScreen& screen) {
   props.rowHeight = std::max<int16_t>(std::max<int16_t>(64, screen.theme().rowHeight),
                                       static_cast<int16_t>((screen.body().height + 9) / 10));
   syncListViewport(screen, props);
+  // Keep persistent focus light while retaining the theme's active tap feedback.
+  props.rowStyles.selected = props.rowStyles.normal;
+  props.selectionMarker = store.canEdit() ? fui::SelectionMarker::Underline : fui::SelectionMarker::None;
+  props.markerThickness = 1;
+  props.markerPaint = props.rowStyles.normal.foreground;
+  props.underlineFitsText = true;
   if (!store.model().size()) {
     screen.list(props, static_cast<int16_t>(props.rowHeight + props.rowGap));
-    fui::TextAreaProps text;
-    text.text = tr(STR_TODO_EMPTY);
-    text.showCaret = false;
-    text.style = screen.theme().bodyText;
-    screen.textArea(text, static_cast<int16_t>(uiTarget.lineHeight(text.style.font) * 2));
+    if (status == TodoStore::Status::Ok) screen.centeredText(tr(STR_TODO_EMPTY));
   } else {
     screen.list(props);
   }
