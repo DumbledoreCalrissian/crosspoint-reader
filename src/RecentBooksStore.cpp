@@ -1,5 +1,6 @@
 #include "RecentBooksStore.h"
 
+#include <ClippingsExport.h>
 #include <HalStorage.h>
 #include <Logging.h>
 
@@ -26,6 +27,10 @@ bool RecentBooksStore::fromJson(JsonVariantConst doc) {
     if (getCount() >= MAX_RECENT_BOOKS) break;
     RecentBook book;
     book.path = obj["path"] | "";
+    if (ClippingsExport::isPath(book.path)) {
+      requestResave();
+      continue;
+    }
     book.title = obj["title"] | "";
     book.author = obj["author"] | "";
     book.coverBmpPath = obj["coverBmpPath"] | "";
@@ -38,6 +43,7 @@ bool RecentBooksStore::fromJson(JsonVariantConst doc) {
 
 void RecentBooksStore::addBook(const std::string& path, const std::string& title, const std::string& author,
                                const std::string& coverBmpPath) {
+  if (ClippingsExport::isPath(path)) return;
   // Drop stale entries first so a new add can't evict a valid book in their stead.
   pruneMissing();
 
@@ -90,6 +96,10 @@ bool RecentBooksStore::removeByPath(const std::string& path) {
 
 void RecentBooksStore::updatePath(const std::string& oldPath, const std::string& newPath,
                                   const std::string& oldCachePath, const std::string& newCachePath) {
+  if (ClippingsExport::isPath(newPath)) {
+    removeByPath(oldPath);
+    return;
+  }
   auto it = std::find_if(recentBooks.begin(), recentBooks.end(),
                          [&](const RecentBook& book) { return book.path == oldPath; });
   if (it == recentBooks.end()) {

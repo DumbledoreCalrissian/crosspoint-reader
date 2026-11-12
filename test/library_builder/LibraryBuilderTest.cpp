@@ -58,6 +58,49 @@ TEST(LibraryBookFileTest, AcceptsBookFilesTheWalkLists) {
   EXPECT_TRUE(isLibraryBookFile("/Books/./book.epub"));
 }
 
+TEST_F(LibraryBuilderTest, ExcludesRootClippingsExportButKeepsNestedNamesake) {
+  fake::add("/My Clippings.txt");
+  fake::add("/Books/My Clippings.txt");
+  EXPECT_FALSE(isLibraryBookFile("/My Clippings.txt"));
+  EXPECT_FALSE(isLibraryBookFile("/./MY CLIPPINGS.TXT"));
+  EXPECT_TRUE(isLibraryBookFile("/Books/My Clippings.txt"));
+
+  initial();
+  LibraryIndexFile index;
+  ASSERT_TRUE(index.open(INDEX));
+  ASSERT_EQ(index.bookCount(), 3);
+  std::vector<std::string> paths;
+  paths.reserve(index.bookCount());
+  for (uint16_t row = 0; row < index.bookCount(); ++row) paths.push_back(pathAt(index, SortOrder::TitleAsc, row));
+  EXPECT_EQ(std::count(paths.begin(), paths.end(), "/My Clippings.txt"), 0);
+  EXPECT_EQ(std::count(paths.begin(), paths.end(), "/Books/My Clippings.txt"), 1);
+}
+
+TEST_F(LibraryBuilderTest, EligibilityVersionRebuildPreservesArrivalHistory) {
+  initial();
+  LibraryIndexFile before;
+  ASSERT_TRUE(before.open(INDEX));
+  ClixRecord oldRecord{};
+  ASSERT_TRUE(before.readRecord(0, oldRecord));
+  const auto oldNext = before.header().nextFirstSeen;
+  ClixHeader header = before.header();
+  before.close();
+  header.foldVersion = CLIX_FOLD_VERSION - 1;
+  std::memcpy(fake::files[INDEX]->bytes.data(), &header, sizeof(header));
+
+  LibraryIndexFile stale;
+  EXPECT_FALSE(stale.open(INDEX));
+  ASSERT_TRUE(buildLibraryIndex("/", stats, true));
+  EXPECT_TRUE(stats.indexReplaced);
+  LibraryIndexFile after;
+  ASSERT_TRUE(after.open(INDEX));
+  ClixRecord newRecord{};
+  ASSERT_TRUE(after.readRecord(0, newRecord));
+  EXPECT_EQ(newRecord.firstSeen, oldRecord.firstSeen);
+  EXPECT_EQ(after.header().nextFirstSeen, oldNext);
+  EXPECT_EQ(after.header().foldVersion, CLIX_FOLD_VERSION);
+}
+
 TEST(LibraryBookFileTest, RejectsOtherFilesAndHiddenNames) {
   EXPECT_FALSE(isLibraryBookFile(""));
   EXPECT_FALSE(isLibraryBookFile("/Books/book.pdf"));

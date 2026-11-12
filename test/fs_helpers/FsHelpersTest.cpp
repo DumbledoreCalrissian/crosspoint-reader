@@ -3,11 +3,24 @@
 #include <cstdio>
 #include <string>
 
+#include "ClippingsExport.h"
 #include "FsHelpers.h"
 
 namespace {
 
 using namespace std::string_view_literals;
+
+TEST(ClippingsExport, MatchesOnlyTheRootExportWithFatCaseAndRootAliases) {
+  for (const auto path :
+       {"/My Clippings.txt"sv, "My Clippings.txt"sv, "///./MY CLIPPINGS.TXT"sv, "./my clippings.txt"sv}) {
+    EXPECT_TRUE(ClippingsExport::isPath(path)) << path;
+  }
+  for (const auto path : {"/books/My Clippings.txt"sv, "/My Clippings.txt/book.txt"sv, "/My Clippings.txt.bak"sv,
+                          "/My Clippings.txt/"sv, ""sv}) {
+    EXPECT_FALSE(ClippingsExport::isPath(path)) << path;
+  }
+  EXPECT_TRUE(FsHelpers::hasReflowableBookExtension(ClippingsExport::PATH));
+}
 
 TEST(ReflowableBookExtension, IncludesTextFormatsAndExcludesImageBooks) {
   for (const auto path : {"/Books/book.epub"sv, "book.TXT"sv, "book.mD"sv}) {

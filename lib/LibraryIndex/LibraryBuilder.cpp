@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <BufferedFile.h>
+#include <ClippingsExport.h>
 #include <Epub.h>
 #include <FsHelpers.h>
 #include <HalStorage.h>
@@ -529,7 +530,8 @@ void walk(WalkState& st, const std::string& path, const int depth) {
       }
       continue;
     }
-    if (!isLibraryBookFile(name)) continue;
+    const std::string fullPath = joinLibraryPath(path, name);
+    if (!isLibraryBookFile(fullPath)) continue;
 
     // A zero-length book is a dangling directory entry: the name enumerates but
     // the contents do not exist. Counted rather than silently dropped.
@@ -583,7 +585,7 @@ void walk(WalkState& st, const std::string& path, const int depth) {
       st.folderId++;
       folderEmitted = true;
     }
-    if (!stageRecord(st, name, size, myFolderId, joinLibraryPath(path, name), modificationTime)) break;
+    if (!stageRecord(st, name, size, myFolderId, fullPath, modificationTime)) break;
   }
   dir.close();
 }
@@ -1086,6 +1088,7 @@ bool emitIndex(const char* folderStagePath, WalkState& st, const uint16_t* order
 const char* libraryIndexPath() { return INDEX_PATH; }
 
 bool isLibraryBookFile(const std::string_view path) {
+  if (ClippingsExport::isPath(path)) return false;
   // Match the walk's exclusions in every path component. A lone "." names the folder itself.
   const std::string_view relativePath = normalizeLibraryRootAliases(path);
   if (isLibrarySkipped(relativePath, true)) return false;

@@ -758,6 +758,8 @@ Each book can store up to **1,024 clippings on ESP32-S3 devices** or **256 on ES
 
 The structured clipping store under `.crosspoint/clippings` keeps up to **4 KiB of UTF-8 text per clipping**. Longer selections must be shortened before saving. CrossPoint also appends up to **2,000 UTF-8 bytes** of each saved excerpt to `My Clippings.txt` in the root of the SD card, using Kindle-compatible formatting. If that export fails, the clipping remains saved and the message reports the export failure.
 
+The root `My Clippings.txt` export stays available in Browse Files and file transfer, but is excluded from Library and Home's book lists, including after viewing it. A same-named file in another folder is treated as an ordinary book.
+
 Local book and folder moves carry clipping data with them. Deleting a local book removes its local clipping data; it does not delete already synced server copies or historical entries in `My Clippings.txt`. Deleting an individual clipping likewise leaves the text export untouched, but queues its server deletion for the next enabled manual sync. `My Clippings.txt` is an independent append-only export, not the source used to restore or sync highlights.
 
 ## 6. Current Limitations & Roadmap
