@@ -20,6 +20,7 @@
 #include "activities/util/KeyboardEntryActivity.h"
 #include "components/UITheme.h"
 #include "components/UiAppHelpers.h"
+#include "components/UiScreenHeader.h"
 #include "components/icons/headerIcons.h"
 #include "fontIds.h"
 #include "util/BookCacheUtils.h"
@@ -750,45 +751,22 @@ void FileBrowserActivity::buildScreen(UiScreen& screen) {
 }
 
 void FileBrowserActivity::buildHeader(UiScreen& screen) {
-  const auto& metrics = UITheme::getInstance().getMetrics();
-  const auto& theme = screen.theme();
   const std::string title =
       (mode == Mode::PickFirmware)
           ? std::string(tr(STR_SELECT_FIRMWARE_FILE))
           : ((basepath == "/") ? std::string(tr(STR_SD_CARD)) : basepath.substr(basepath.rfind('/') + 1));
-  // Same header as Library: theme title, battery/clock band and icon actions.
   fui::HeaderProps header;
-  header.title = title.c_str();
-  header.titleText = theme.titleText;
-  header.titleText.align = theme.headerTitleAlign;
-  header.sidePadding = theme.headerSidePadding;
-  header.minTouchSize = theme.minTouchSize;
-  header.styles = theme.popup;
-  if (header.styles.normal.border.kind == fui::PaintKind::None && theme.headerUnderline > 0) {
-    header.styles.normal.border = fui::Paint::solid(fui::Color::Black);
-    header.styles.normal.borderWidth = theme.headerUnderline;
-  }
-  header.trailingStyles = fui::plainStyles(fui::Paint::solid(fui::Color::Black));
-  header.borderEdges = fui::EdgeBottom;
-  GUI.applyHeaderStatus(renderer, header);
-  if (mappedInput.hasTouch()) {
-    header.leadingIcon = fui::bitmapFromIcon(icon_header_back_32);
-    header.leadingAction = ACTION_BACK;
-  }
+  const auto band =
+      prepareUiHeader(screen, renderer, header, title.c_str(), mappedInput.hasTouch() ? ACTION_BACK : fui::NO_ACTION);
   if (showsFileTransfer()) {
     header.trailingIcon = fui::bitmapFromIcon(icon_send_32);
     header.trailingAction = ACTION_FILE_TRANSFER;
     if (transferFocused) {
       // The header button has no selected state; paint its normal style as the selection.
-      header.trailingStyles = themedSelectionStyles(theme);
+      header.trailingStyles = themedSelectionStyles(screen.theme());
       header.trailingStyles.normal = header.trailingStyles.selected;
     }
   }
-  const auto frame = screen.frame().screen();
-  const auto band = BaseTheme::headerBand(renderer,
-                                          fui::Rect{frame.x, static_cast<int16_t>(metrics.topPadding), frame.width,
-                                                    static_cast<int16_t>(metrics.headerHeight)},
-                                          header);
   fui::header(screen.frame(), band, header);
 }
 

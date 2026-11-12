@@ -13,6 +13,7 @@
 #include "components/UIScale.h"
 #include "components/UITheme.h"
 #include "components/UiAppHelpers.h"
+#include "components/UiScreenHeader.h"
 #include "components/icons/headerIcons.h"
 #include "components/icons/listIcons.h"
 #include "fontIds.h"
@@ -216,36 +217,15 @@ const char* PomodoroActivity::statusLabel() const {
 }
 
 void PomodoroActivity::buildHeader(UiScreen& screen) {
-  const auto& metrics = UITheme::getInstance().getMetrics();
-  const auto& theme = screen.theme();
   fui::HeaderProps header;
-  header.title = tr(STR_POMODORO);
-  header.titleText = theme.titleText;
-  header.titleText.align = theme.headerTitleAlign;
-  header.sidePadding = theme.headerSidePadding;
-  header.minTouchSize = theme.minTouchSize;
-  header.styles = theme.popup;
-  if (header.styles.normal.border.kind == fui::PaintKind::None && theme.headerUnderline > 0) {
-    header.styles.normal.border = fui::Paint::solid(fui::Color::Black);
-    header.styles.normal.borderWidth = theme.headerUnderline;
-  }
-  header.borderEdges = fui::EdgeBottom;
-  header.trailingStyles = fui::plainStyles(fui::Paint::solid(fui::Color::Black));
+  const auto band = prepareUiHeader(screen, renderer, header, tr(STR_POMODORO), Back);
   if (visibleFocus() == Focus::Settings) {
     // The header button has no selected state; paint its normal style as the selection.
-    header.trailingStyles = themedSelectionStyles(theme);
+    header.trailingStyles = themedSelectionStyles(screen.theme());
     header.trailingStyles.normal = header.trailingStyles.selected;
   }
-  GUI.applyHeaderStatus(renderer, header);
-  header.leadingIcon = fui::bitmapFromIcon(icon_header_back_32);
-  header.leadingAction = Back;
   header.trailingIcon = fui::bitmapFromIcon(icon_settings_32);
   header.trailingAction = Settings;
-  const auto frame = screen.frame().screen();
-  const auto band = BaseTheme::headerBand(renderer,
-                                          fui::Rect{frame.x, static_cast<int16_t>(metrics.topPadding), frame.width,
-                                                    static_cast<int16_t>(metrics.headerHeight)},
-                                          header);
   fui::header(screen.frame(), band, header);
 }
 

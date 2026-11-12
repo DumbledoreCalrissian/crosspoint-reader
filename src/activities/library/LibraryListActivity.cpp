@@ -21,6 +21,7 @@
 #include "activities/util/KeyboardEntryActivity.h"
 #include "components/UIScale.h"
 #include "components/UITheme.h"
+#include "components/UiScreenHeader.h"
 #include "components/icons/headerIcons.h"
 #include "components/icons/listIcons.h"
 #include "components/icons/search32.h"
@@ -942,28 +943,9 @@ void LibraryListActivity::formatAuthorHeading(const std::string& author, std::st
 }
 
 void LibraryListActivity::buildHeader(UiScreen& screen) {
-  const auto& metrics = UITheme::getInstance().getMetrics();
-  const auto& theme = screen.theme();
   fui::HeaderProps header;
-  header.title = headerTitle();
-  header.titleText = theme.titleText;
-  header.titleText.align = theme.headerTitleAlign;
-  header.sidePadding = theme.headerSidePadding;
-  header.minTouchSize = theme.minTouchSize;
-  header.styles = theme.popup;
-  if (header.styles.normal.border.kind == fui::PaintKind::None && theme.headerUnderline > 0) {
-    header.styles.normal.border = fui::Paint::solid(fui::Color::Black);
-    header.styles.normal.borderWidth = theme.headerUnderline;
-  }
-  header.trailingStyles = fui::plainStyles(fui::Paint::solid(fui::Color::Black));
-  header.borderEdges = fui::EdgeBottom;
-  // Same battery/clock band as every GUI.drawHeader screen; the header
-  // heights are unified across themes, so the buttons derive from the band.
-  GUI.applyHeaderStatus(renderer, header);
-  if (mappedInput.hasTouch()) {
-    header.leadingIcon = fui::bitmapFromIcon(icon_header_back_32);
-    header.leadingAction = ACTION_BACK;
-  }
+  const auto band =
+      prepareUiHeader(screen, renderer, header, headerTitle(), mappedInput.hasTouch() ? ACTION_BACK : fui::NO_ACTION);
   if (!degraded) {
     // Keep both touch actions together on the right; button boards reach
     // rebuild through the row options menu.
@@ -973,15 +955,7 @@ void LibraryListActivity::buildHeader(UiScreen& screen) {
       header.trailingAdjacentIcon = fui::bitmapFromIcon(icon_refresh_cw_32);
       header.trailingAdjacentAction = ACTION_REBUILD;
     }
-    // Vertical placement comes from applyHeaderStatus: buttons center on the
-    // unified band.
   }
-  const auto frameRect = screen.frame().screen();
-  // Header and tabs share a screen-relative boundary, independent of bezel insets.
-  const fui::Rect band = BaseTheme::headerBand(renderer,
-                                               fui::Rect{frameRect.x, static_cast<int16_t>(metrics.topPadding),
-                                                         frameRect.width, static_cast<int16_t>(metrics.headerHeight)},
-                                               header);
   fui::header(screen.frame(), band, header);
 }
 

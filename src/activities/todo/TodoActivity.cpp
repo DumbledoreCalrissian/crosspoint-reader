@@ -11,6 +11,7 @@
 #include "activities/util/ConfirmationActivity.h"
 #include "activities/util/KeyboardEntryActivity.h"
 #include "components/UITheme.h"
+#include "components/UiScreenHeader.h"
 #include "components/icons/headerIcons.h"
 #include "components/icons/listIcons.h"
 
@@ -92,34 +93,14 @@ void TodoActivity::provideRow(void* context, uint16_t index, fui::ListItem& item
 }
 
 void TodoActivity::buildHeader(UiScreen& screen) {
-  const auto& metrics = UITheme::getInstance().getMetrics();
-  const auto& theme = screen.theme();
   fui::HeaderProps header;
-  header.title = view == View::Tasks ? tr(STR_TODO) : tr(STR_TODO_DELETE_TITLE);
-  header.titleText = theme.titleText;
-  header.titleText.align = theme.headerTitleAlign;
-  header.sidePadding = theme.headerSidePadding;
-  header.minTouchSize = theme.minTouchSize;
-  header.styles = theme.popup;
-  if (header.styles.normal.border.kind == fui::PaintKind::None && theme.headerUnderline > 0) {
-    header.styles.normal.border = fui::Paint::solid(fui::Color::Black);
-    header.styles.normal.borderWidth = theme.headerUnderline;
-  }
-  header.borderEdges = fui::EdgeBottom;
-  header.trailingStyles = fui::plainStyles(fui::Paint::solid(fui::Color::Black));
-  GUI.applyHeaderStatus(renderer, header);
-  header.leadingIcon = fui::bitmapFromIcon(icon_header_back_32);
-  header.leadingAction = ACTION_BACK;
+  const auto band = prepareUiHeader(screen, renderer, header,
+                                    view == View::Tasks ? tr(STR_TODO) : tr(STR_TODO_DELETE_TITLE), ACTION_BACK);
   if (view == View::Tasks) {
     header.trailingIcon = fui::bitmapFromIcon(icon_trash_2_32);
     header.trailingAction = ACTION_DELETE_MODE;
     header.trailingEnabled = store.canEdit() && store.model().size();
   }
-  const auto frame = screen.frame().screen();
-  const auto band = BaseTheme::headerBand(renderer,
-                                          fui::Rect{frame.x, static_cast<int16_t>(metrics.topPadding), frame.width,
-                                                    static_cast<int16_t>(metrics.headerHeight)},
-                                          header);
   fui::header(screen.frame(), band, header);
 }
 
