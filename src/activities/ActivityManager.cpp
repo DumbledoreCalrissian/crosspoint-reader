@@ -217,6 +217,7 @@ void ActivityManager::loop() {
         }
       } else if (pendingAction == PendingAction::Push) {
         // Move current activity to stack
+        if (currentActivity) currentActivity->onCovered();
         stackActivities.push_back(std::move(currentActivity));
         // The parent's header back rect must not route taps on the pushed
         // screen (which may draw no header of its own).
@@ -373,6 +374,8 @@ void ActivityManager::goHome(HomeMenuItem initialMenuItem, bool cleanInitialRefr
       initialMenuItem = HomeMenuItem::FILE_TRANSFER;
     } else if (activityName == "Settings" || activityName == "SettingsList") {
       initialMenuItem = HomeMenuItem::SETTINGS_MENU;
+    } else if (activityName == "Pomodoro") {
+      initialMenuItem = HomeMenuItem::POMODORO;
     }
   }
   replaceActivity(std::make_unique<HomeActivity>(renderer, mappedInput, initialMenuItem, cleanInitialRefresh));
@@ -401,6 +404,9 @@ void ActivityManager::popActivity() {
 }
 
 bool ActivityManager::preventAutoSleep() const { return currentActivity && currentActivity->preventAutoSleep(); }
+bool ActivityManager::allowIdlePowerSaving() const {
+  return currentActivity && currentActivity->allowIdlePowerSaving();
+}
 
 bool ActivityManager::requiresExclusiveStorageLoop() const {
   return currentActivity && currentActivity->requiresExclusiveStorageLoop();

@@ -328,6 +328,11 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t paragraphAlignment = JUSTIFIED;
   // Auto-sleep timeout setting (default 10 minutes). Legacy sleepTimeout enum values are migration-only.
   uint8_t sleepTimeoutMinutes = 10;
+  // Pomodoro phase lengths in minutes and focus sessions before a long break.
+  uint8_t pomodoroFocusMinutes = DEFAULT_POMODORO_FOCUS_MINUTES;
+  uint8_t pomodoroShortBreakMinutes = DEFAULT_POMODORO_SHORT_BREAK_MINUTES;
+  uint8_t pomodoroLongBreakMinutes = DEFAULT_POMODORO_LONG_BREAK_MINUTES;
+  uint8_t pomodoroSessionsPerCycle = DEFAULT_POMODORO_SESSIONS;
   // E-ink refresh frequency (default 15 pages)
   uint8_t refreshFrequency = REFRESH_15;
   uint8_t hyphenationEnabled = 0;
@@ -433,6 +438,18 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   static constexpr uint8_t MIN_SLEEP_TIMEOUT_MINUTES = 1;
   static constexpr uint8_t SLEEP_TIMEOUT_NEVER_MINUTES = 31;
   static constexpr uint8_t MAX_SLEEP_TIMEOUT_MINUTES = SLEEP_TIMEOUT_NEVER_MINUTES;
+  static constexpr uint8_t DEFAULT_POMODORO_FOCUS_MINUTES = 25;
+  static constexpr uint8_t DEFAULT_POMODORO_SHORT_BREAK_MINUTES = 5;
+  static constexpr uint8_t DEFAULT_POMODORO_LONG_BREAK_MINUTES = 15;
+  static constexpr uint8_t DEFAULT_POMODORO_SESSIONS = 4;
+  static constexpr uint8_t MIN_POMODORO_FOCUS_MINUTES = 5;
+  static constexpr uint8_t MAX_POMODORO_FOCUS_MINUTES = 90;
+  static constexpr uint8_t MIN_POMODORO_SHORT_BREAK_MINUTES = 1;
+  static constexpr uint8_t MAX_POMODORO_SHORT_BREAK_MINUTES = 30;
+  static constexpr uint8_t MIN_POMODORO_LONG_BREAK_MINUTES = 5;
+  static constexpr uint8_t MAX_POMODORO_LONG_BREAK_MINUTES = 60;
+  static constexpr uint8_t MIN_POMODORO_SESSIONS = 2;
+  static constexpr uint8_t MAX_POMODORO_SESSIONS = 8;
 
   // Callback to resolve SD card font IDs. Set by SdCardFontSystem::begin().
   // Returns font ID or 0 if not found.

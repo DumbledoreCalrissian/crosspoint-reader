@@ -21,6 +21,8 @@ constexpr int kBottomRadius = 15;
 constexpr int kRowRadius = 20;
 constexpr int kInteractiveInsetX = 20;
 constexpr int kSelectableRowGap = 6;
+// Home's touch rows and visible window use menuSpacing as the row gap.
+static_assert(kSelectableRowGap == RoundedRaffMetrics::values.menuSpacing);
 constexpr int kTitleFontId = UI_12_FONT_ID;  // Requested main title size: 12px
 constexpr int kGuideFontId = SMALL_FONT_ID;  // Closest available to requested 6px
 

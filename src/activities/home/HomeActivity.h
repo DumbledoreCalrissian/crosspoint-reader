@@ -1,4 +1,5 @@
 #pragma once
+#include <atomic>
 #include <functional>
 #include <vector>
 
@@ -14,6 +15,8 @@ class HomeActivity final : public Activity {
   std::unique_ptr<CoverGridHomeUi> coverGridUi;
   ButtonNavigator buttonNavigator;
   int selectorIndex = 0;
+  // First visible menu row, written by render; touch maps rows against the last render.
+  std::atomic<int> menuTopRow{0};
   bool recentsLoading = false;
   bool recentsLoaded = false;
   bool firstRenderDone = false;
@@ -60,6 +63,8 @@ class HomeActivity final : public Activity {
     if (item == HomeMenuItem::SETTINGS_MENU) return i;
     ++i;
     if (item == HomeMenuItem::TODO) return i;
+    ++i;
+    if (item == HomeMenuItem::POMODORO) return i;
     return 0;
   }
 
@@ -71,7 +76,8 @@ class HomeActivity final : public Activity {
     if (slot != HomeMenuItem::NONE && idx == i++) return slot;
     if (idx == i++) return HomeMenuItem::FILE_TRANSFER;
     if (idx == i++) return HomeMenuItem::SETTINGS_MENU;
-    if (idx == i) return HomeMenuItem::TODO;
+    if (idx == i++) return HomeMenuItem::TODO;
+    if (idx == i) return HomeMenuItem::POMODORO;
     return HomeMenuItem::NONE;
   }
   void onRecentBookSelected(const std::string& path);
@@ -83,6 +89,10 @@ class HomeActivity final : public Activity {
   void onPluginsOpen();
 
   int getMenuItemCount() const;
+  int menuTop() const;
+  int menuRowStep() const;
+  int visibleMenuRows() const;
+  int firstMenuRow(int count) const;
   bool storeCoverBuffer();    // Store frame buffer for cover image
   bool restoreCoverBuffer();  // Restore frame buffer from stored cover
   void freeCoverBuffer();     // Free the stored cover buffer

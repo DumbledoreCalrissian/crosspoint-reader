@@ -903,9 +903,14 @@ void loop() {
 
   // Check for any user activity (button press or release) or active background work
   static unsigned long lastActivityTime = millis();
-  if (gpio.wasAnyPressed() || gpio.wasAnyReleased() || gpio.wasTouchActivity() || halTiltSensor.hadActivity() ||
-      remoteActed || activityManager.preventAutoSleep()) {
-    lastActivityTime = millis();         // Reset inactivity timer
+  // Separate from lastActivityTime only for activities that stay awake but allow idle CPU speed.
+  static unsigned long lastBusyTime = millis();
+  const bool userActivity = gpio.wasAnyPressed() || gpio.wasAnyReleased() || gpio.wasTouchActivity() ||
+                            halTiltSensor.hadActivity() || remoteActed;
+  const bool keepAwake = activityManager.preventAutoSleep();
+  if (userActivity || keepAwake) lastActivityTime = millis();  // Reset inactivity timer
+  if (userActivity || (keepAwake && !activityManager.allowIdlePowerSaving())) {
+    lastBusyTime = millis();
     powerManager.setPowerSaving(false);  // Restore normal CPU frequency on user activity
   }
 
@@ -1049,7 +1054,7 @@ void loop() {
     powerManager.setPowerSaving(false);  // Make sure we're at full performance when skipLoopDelay is requested
     yield();                             // Give FreeRTOS a chance to run tasks, but return immediately
   } else {
-    if (millis() - lastActivityTime >= HalPowerManager::IDLE_POWER_SAVING_MS && !pageturner::holdsCpu.load()) {
+    if (millis() - lastBusyTime >= HalPowerManager::IDLE_POWER_SAVING_MS && !pageturner::holdsCpu.load()) {
       // If we've been inactive for a while, increase the delay to save power
       powerManager.setPowerSaving(true);  // Lower CPU frequency after extended inactivity
       // Sleep in short slices and wake the poll as soon as a button contact closes.

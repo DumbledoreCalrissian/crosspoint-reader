@@ -18,7 +18,17 @@
 class Activity;    // forward declaration
 class RenderLock;  // forward declaration
 
-enum class HomeMenuItem { NONE, FILE_BROWSER, LIBRARY, PLUGINS, OPDS_BROWSER, FILE_TRANSFER, SETTINGS_MENU, TODO };
+enum class HomeMenuItem {
+  NONE,
+  FILE_BROWSER,
+  LIBRARY,
+  PLUGINS,
+  OPDS_BROWSER,
+  FILE_TRANSFER,
+  SETTINGS_MENU,
+  TODO,
+  POMODORO
+};
 
 /**
  * ActivityManager
@@ -108,6 +118,7 @@ class ActivityManager {
   void popActivity();
 
   bool preventAutoSleep() const;
+  bool allowIdlePowerSaving() const;
   bool requiresExclusiveStorageLoop() const;
   bool isReaderActivity() const;
   // Bluetooth page turner (lib/BlePageTurner): the book in front, whether it has painted a page, and

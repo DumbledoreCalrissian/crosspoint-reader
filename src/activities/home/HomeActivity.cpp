@@ -23,12 +23,14 @@
 #include "MappedInputManager.h"
 #include "OpdsServerStore.h"
 #include "RecentBooksStore.h"
+#include "activities/pomodoro/PomodoroActivity.h"
 #include "activities/todo/TodoActivity.h"
 #include "components/UITheme.h"
+#include "components/UiAppHelpers.h"
 #include "fontIds.h"
 
 int HomeActivity::getMenuItemCount() const {
-  int count = 5;  // File Browser, Library, File transfer, Settings, Todo
+  int count = 6;  // File Browser, Library, File transfer, Settings, Todo, Pomodoro
   if (!recentBooks.empty()) {
     count += recentBooks.size();
   }
@@ -36,6 +38,34 @@ int HomeActivity::getMenuItemCount() const {
     count++;
   }
   return count;
+}
+
+// Shared by layout, touch, drawing and the scroll indicator so they cannot drift.
+int HomeActivity::menuTop() const {
+  const auto& metrics = UITheme::getInstance().getMetrics();
+  return metrics.homeTopPadding + metrics.homeCoverTileHeight + metrics.homeMenuTopOffset;
+}
+
+int HomeActivity::menuRowStep() const {
+  return GUI.getMenuRowHeight(renderer) + UITheme::getInstance().getMetrics().menuSpacing;
+}
+
+int HomeActivity::visibleMenuRows() const {
+  const auto& metrics = UITheme::getInstance().getMetrics();
+  const int footer = mappedInput.hasTouch() ? 0 : metrics.buttonHintsHeight;
+  const int height = renderer.getScreenHeight() - menuTop() - footer - metrics.verticalSpacing;
+  return std::max(1, (height + metrics.menuSpacing) / menuRowStep());
+}
+
+int HomeActivity::firstMenuRow(const int count) const {
+  const auto& metrics = UITheme::getInstance().getMetrics();
+  const int selected = selectorIndex - (metrics.homeContinueReadingInMenu ? 0 : static_cast<int>(recentBooks.size()));
+  const int rows = visibleMenuRows();
+  int first = std::clamp(menuTopRow.load(), 0, std::max(0, count - rows));
+  // Keep visible rows stationary during a tap's press/release pair.
+  if (selected >= 0 && selected < first) first = selected;
+  if (selected >= first + rows) first = selected - rows + 1;
+  return first;
 }
 
 void HomeActivity::loadRecentBooks(int maxBooks) {
@@ -344,6 +374,13 @@ void HomeActivity::loop() {
           LOG_ERR("TODO", "Allocation failed: %u bytes", static_cast<unsigned>(sizeof(TodoActivity)));
         }
         break;
+      case HomeMenuItem::POMODORO:
+        if (auto timer = makeUniqueNoThrow<PomodoroActivity>(renderer, mappedInput)) {
+          activityManager.replaceActivity(std::move(timer));
+        } else {
+          LOG_ERR("POMO", "Allocation failed: %u bytes", static_cast<unsigned>(sizeof(PomodoroActivity)));
+        }
+        break;
       case HomeMenuItem::SETTINGS_MENU:
         onSettingsOpen();
         break;
@@ -453,18 +490,19 @@ void HomeActivity::loop() {
     return;
   }
 
-  const int menuTop = metrics.homeTopPadding + metrics.homeCoverTileHeight + metrics.homeMenuTopOffset;
   const int renderedMenuCount =
       menuCount - (metrics.homeContinueReadingInMenu ? 0 : static_cast<int>(recentBooks.size()));
+  const int first = menuTopRow.load();
+  const int visibleCount = std::min(renderedMenuCount, visibleMenuRows());
   int menuRow = -1;
   // Row height from the theme, not the metrics table: RoundedRaff draws
   // font-derived rows and the touch grid must match the visuals exactly.
   const int menuRowHeight = GUI.getMenuRowHeight(renderer);
-  const auto menuTouch = mappedInput.rowTouch(menuRow, menuTop, menuRowHeight + metrics.menuSpacing, renderedMenuCount,
-                                              0, INT32_MAX, menuRowHeight);
+  const auto menuTouch =
+      mappedInput.rowTouch(menuRow, menuTop(), menuRowStep(), visibleCount, 0, INT32_MAX, menuRowHeight);
   if (menuTouch != MappedInputManager::RowTouch::None) {
     const int touchedIndex =
-        metrics.homeContinueReadingInMenu ? menuRow : menuRow + static_cast<int>(recentBooks.size());
+        first + menuRow + (metrics.homeContinueReadingInMenu ? 0 : static_cast<int>(recentBooks.size()));
     if (menuTouch == MappedInputManager::RowTouch::Down) {
       if (selectorIndex != touchedIndex) {
         selectorIndex = touchedIndex;
@@ -486,7 +524,6 @@ void HomeActivity::loop() {
 void HomeActivity::render(RenderLock&&) {
   const auto& metrics = UITheme::getInstance().getMetrics();
   const auto pageWidth = renderer.getScreenWidth();
-  const auto pageHeight = renderer.getScreenHeight();
   // Content columns clear the bezel insets on rounded panels. The header
   // self-insets in drawHeader, so only the cover/menu need it here.
   const Rect content = UITheme::getInstance().getContentArea(renderer);
@@ -557,9 +594,9 @@ void HomeActivity::render(RenderLock&&) {
                           std::bind(&HomeActivity::storeCoverBuffer, this));
 
   // Build menu items dynamically
-  std::vector<const char*> menuItems = {tr(STR_BROWSE_FILES), tr(STR_LIBRARY), tr(STR_FILE_TRANSFER),
-                                        tr(STR_SETTINGS_TITLE), tr(STR_TODO)};
-  std::vector<UIIcon> menuIcons = {Folder, Library, Transfer, Settings, Todo};
+  std::vector<const char*> menuItems = {tr(STR_BROWSE_FILES),   tr(STR_LIBRARY), tr(STR_FILE_TRANSFER),
+                                        tr(STR_SETTINGS_TITLE), tr(STR_TODO),    tr(STR_POMODORO)};
+  std::vector<UIIcon> menuIcons = {Folder, Library, Transfer, Settings, Todo, Pomodoro};
 
   if (slotItem() != HomeMenuItem::NONE) {
     menuItems.insert(menuItems.begin() + 2, hasPlugins ? tr(STR_PLUGINS) : tr(STR_OPDS_BROWSER));
@@ -572,15 +609,27 @@ void HomeActivity::render(RenderLock&&) {
     menuIcons.insert(menuIcons.begin(), Book);
   }
 
+  const int first = firstMenuRow(static_cast<int>(menuItems.size()));
+  menuTopRow.store(first);
+  const int visibleCount = std::min(static_cast<int>(menuItems.size()), visibleMenuRows());
+  // Exactly the visible window, so a theme that pages by rect height never pages again.
   GUI.drawButtonMenu(
-      renderer,
-      Rect{content.x, metrics.homeTopPadding + metrics.homeCoverTileHeight + metrics.homeMenuTopOffset, content.width,
-           pageHeight - (metrics.headerHeight + metrics.homeTopPadding + metrics.verticalSpacing +
-                         metrics.homeMenuTopOffset + metrics.buttonHintsHeight)},
-      static_cast<int>(menuItems.size()),
-      metrics.homeContinueReadingInMenu ? selectorIndex : selectorIndex - recentBooks.size(),
-      [&menuItems](int index) { return std::string(menuItems[index]); },
-      [&menuIcons](int index) { return menuIcons[index]; });
+      renderer, Rect{content.x, menuTop(), content.width, visibleCount * menuRowStep()}, visibleCount,
+      (metrics.homeContinueReadingInMenu ? selectorIndex : selectorIndex - static_cast<int>(recentBooks.size())) -
+          first,
+      [&menuItems, first](int index) { return std::string(menuItems[index + first]); },
+      [&menuIcons, first](int index) { return menuIcons[index + first]; });
+  if (static_cast<int>(menuItems.size()) > visibleCount) {
+    // Same indicator as Settings lists, so overflowing shortcuts stay discoverable.
+    auto target = makeUiTarget(renderer);
+    freeink::ui::drawListScrollIndicator(
+        target,
+        freeink::ui::Rect{static_cast<int16_t>(content.x), static_cast<int16_t>(menuTop()),
+                          static_cast<int16_t>(content.width),
+                          static_cast<int16_t>(visibleCount * menuRowStep() - metrics.menuSpacing)},
+        menuItems.size(), visibleCount, first, static_cast<int16_t>(metrics.listScrollWidth),
+        static_cast<uint8_t>(metrics.listScrollSide));
+  }
 
   const auto labels = mappedInput.mapLabels(recentBooks.empty() ? "" : tr(STR_RESUME), tr(STR_SELECT), tr(STR_DIR_UP),
                                             tr(STR_DIR_DOWN));

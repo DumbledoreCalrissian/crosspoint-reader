@@ -224,6 +224,27 @@ void forEachBaseSetting(SettingVisitor visit, void* context) {
                          {StrId::STR_FMT_AUTHOR_TITLE, StrId::STR_FMT_TITLE_AUTHOR, StrId::STR_FMT_TITLE},
                          "opdsFilenameFormat"));
 
+  // Pomodoro lengths: persisted, edited only from the Pomodoro screen.
+  emit(SettingInfo::Value(
+           StrId::STR_POMODORO_FOCUS, &CrossPointSettings::pomodoroFocusMinutes,
+           {CrossPointSettings::MIN_POMODORO_FOCUS_MINUTES, CrossPointSettings::MAX_POMODORO_FOCUS_MINUTES, 1},
+           "pomodoroFocusMinutes")
+           .withWebHidden());
+  emit(SettingInfo::Value(StrId::STR_POMODORO_SHORT_BREAK, &CrossPointSettings::pomodoroShortBreakMinutes,
+                          {CrossPointSettings::MIN_POMODORO_SHORT_BREAK_MINUTES,
+                           CrossPointSettings::MAX_POMODORO_SHORT_BREAK_MINUTES, 1},
+                          "pomodoroShortBreakMinutes")
+           .withWebHidden());
+  emit(SettingInfo::Value(StrId::STR_POMODORO_LONG_BREAK, &CrossPointSettings::pomodoroLongBreakMinutes,
+                          {CrossPointSettings::MIN_POMODORO_LONG_BREAK_MINUTES,
+                           CrossPointSettings::MAX_POMODORO_LONG_BREAK_MINUTES, 1},
+                          "pomodoroLongBreakMinutes")
+           .withWebHidden());
+  emit(SettingInfo::Value(StrId::STR_POMODORO_SESSIONS, &CrossPointSettings::pomodoroSessionsPerCycle,
+                          {CrossPointSettings::MIN_POMODORO_SESSIONS, CrossPointSettings::MAX_POMODORO_SESSIONS, 1},
+                          "pomodoroSessionsPerCycle")
+           .withWebHidden());
+
   // Frontlight quick-panel state: persisted and web-exposed, but hidden
   // from the on-device Settings screen because the swipe panel owns it.
   emit(SettingInfo::Value(StrId::STR_BRIGHTNESS, &CrossPointSettings::frontlightBrightness, {0, 100, 5},

@@ -414,6 +414,7 @@ Parent calls: startActivityForResult(make_unique<Child>(...), handler)
 ╚══════════════════════════════════════╝
   │
   ▼ (next loop iteration)
+  ├── Parent->onCovered()   // optional hook, under RenderLock
   ├── Parent moved to stackActivities[]
   ├── currentActivity = Child
   └── Child->onEnter()
@@ -435,6 +436,10 @@ Child calls: setResult(MyResult{...}); finish();
   ├── Parent->resultHandler(result)
   └── requestUpdate()   // automatic re-render for parent
 ```
+
+An activity that returns `preventAutoSleep()` may also return
+`allowIdlePowerSaving()` to keep the idle CPU speed between inputs. Use it only
+when the activity's timing does not depend on the loop rate.
 
 ### Common Pitfalls
 

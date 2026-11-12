@@ -15,3 +15,12 @@ rsvg-convert -w 32 -h 32 freeink-sdk/libs/assets/Icons/lucide/icons/list-todo.sv
 The legacy converter pre-rotates the mask to match `GfxRenderer::drawIcon`.
 Do not substitute the SDK's unrotated UI bitmap. Home uses this icon only in
 themes that already show menu icons; label-only themes keep their native layout.
+
+## Pomodoro timer
+
+`pomodoro.h` uses the same licensed Lucide pipeline with `timer.svg`:
+
+```sh
+rsvg-convert -w 32 -h 32 freeink-sdk/libs/assets/Icons/lucide/icons/timer.svg -o ../qa-artifacts/pomodoro-icon-source.png
+../.venv/bin/python scripts/convert_icon.py ../qa-artifacts/pomodoro-icon-source.png pomodoro 32 32
+```

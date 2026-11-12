@@ -20,6 +20,7 @@
 #include "components/icons/folder.h"
 #include "components/icons/hotspot.h"
 #include "components/icons/library.h"
+#include "components/icons/pomodoro.h"
 #include "components/icons/recent.h"
 #include "components/icons/settings2.h"
 #include "components/icons/todo.h"
@@ -43,6 +44,8 @@ const uint8_t* iconForName(UIIcon icon) {
       return FolderIcon;
     case UIIcon::Book:
       return BookIcon;
+    case UIIcon::Pomodoro:
+      return PomodoroIcon;
     case UIIcon::Todo:
       return TodoIcon;
     case UIIcon::Recent:

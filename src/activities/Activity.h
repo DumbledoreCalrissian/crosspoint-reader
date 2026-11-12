@@ -30,6 +30,8 @@ class Activity {
   virtual ~Activity() = default;
   virtual void onEnter();
   virtual void onExit();
+  // Called under RenderLock before this activity is retained beneath a child.
+  virtual void onCovered() {}
   // Last chance to queue activity-owned state before sleep events are drained.
   virtual void prepareForSleep() {}
   virtual void loop() {}
@@ -45,6 +47,8 @@ class Activity {
 
   virtual bool skipLoopDelay() { return false; }
   virtual bool preventAutoSleep() { return false; }
+  // With preventAutoSleep(), still allow low CPU speed when there is no input.
+  virtual bool allowIdlePowerSaving() const { return false; }
   // Exclusive storage activities suspend global controls and normal activity
   // transitions so no filesystem code races a raw SD-card owner.
   virtual bool requiresExclusiveStorageLoop() const { return false; }
