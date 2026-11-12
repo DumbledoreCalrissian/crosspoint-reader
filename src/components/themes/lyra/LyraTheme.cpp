@@ -22,6 +22,7 @@
 #include "components/icons/library.h"
 #include "components/icons/recent.h"
 #include "components/icons/settings2.h"
+#include "components/icons/todo.h"
 #include "components/icons/transfer.h"
 #include "components/icons/wifi.h"
 #include "fontIds.h"
@@ -42,6 +43,8 @@ const uint8_t* iconForName(UIIcon icon) {
       return FolderIcon;
     case UIIcon::Book:
       return BookIcon;
+    case UIIcon::Todo:
+      return TodoIcon;
     case UIIcon::Recent:
       return RecentIcon;
     case UIIcon::Settings:

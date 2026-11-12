@@ -15,6 +15,7 @@
 #include "icons/folder.h"
 #include "icons/library.h"
 #include "icons/settings2.h"
+#include "icons/todo.h"
 #include "icons/transfer.h"
 #include "util/BookProgress.h"
 
@@ -284,7 +285,7 @@ void CoverGridHomeUi::drawGrid(UiScreen& screen) {
 
 void CoverGridHomeUi::drawTabs(UiScreen& screen, fui::Rect rect) {
   static constexpr const uint8_t* ICONS[] = {FolderIcon,   LibraryIcon,   BlocksIcon,
-                                             TransferIcon, Settings2Icon, BookIcon};
+                                             TransferIcon, Settings2Icon, TodoIcon};
   int count = 0;
   for (int i = 0; i < 6; ++i) {
     if (i == 2 && slotTab == SlotTab::NONE) continue;

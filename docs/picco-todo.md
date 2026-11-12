@@ -5,7 +5,7 @@ CrossPoint's reading-focused scope; this feature is maintained locally.
 
 ## Use
 
-Open **Todo** on Home (the book icon at the end of the cover-grid toolbar).
+Open **Todo** on Home (the checklist icon in themes with Home icons).
 Tap **New task**, type on the existing CrossPoint keyboard, and tap **OK**.
 Tap the checkbox to toggle completion; tap the task description to edit it directly.
 Completed tasks have a checkmark and strike-through on each visible text line.
@@ -30,11 +30,13 @@ connections for Todo, and each accepted change is saved immediately.
 
 Todo uses Library's header geometry, theme title alignment, bezel insets and
 battery/clock status strip. Clock visibility follows CrossPoint's existing
-Display setting. The available New task row is bold, and a thin text-width underline
-marks persistent focus; the active theme still supplies tap feedback.
-Deletion uses the same header/list alignment. Its bottom action is outlined
-when available and smaller plain text while no tasks are selected. Checkboxes
-and the existing one-pixel completed-text strike-through retain their geometry.
+Display setting. List rows inherit the same selected background, fonts, padding,
+radius and spacing as native menus: Lyra uses a light gray dithered pill;
+Classic and RoundedRaff use their native dark selection. New task has normal
+menu typography. Checkbox taps focus their task without opening the keyboard;
+text taps open editing. Deletion uses the shared themed button, including its
+disabled state, with native dialog-button spacing. Checkboxes and the existing
+one-pixel completed-text strike-through retain their geometry.
 Empty lists use native centered text; error messages align with the list’s text
 insets and replace the empty placeholder when data cannot be loaded.
 
@@ -92,11 +94,13 @@ measured ESP32 heap usage. The candidate model coexists with the live model and
 JSON document only during I/O. The keyboard/confirmation retains Todo as its
 parent; render rows are supplied lazily and retain no extra task strings.
 Deletion selection uses a 32-bit mask, a 64-byte footer label, and a 128-byte
-stack array of stable IDs during confirmation. Row minimum height permits at
-most ten full rows, keeping separate checkbox/label hits within the existing
-24-entry interaction table. Existing text wrapping may allocate temporary lines;
+stack array of stable IDs during confirmation. Long main lists cap the viewport at ten full native-sized rows, keeping
+separate checkbox/label hits within the existing 24-entry interaction table.
+Short lists and single-action deletion lists use the available native viewport. Existing text wrapping may allocate temporary lines;
 strike-through reuses those same lines.
-There are no additional worker tasks, framebuffers, or dependencies. The existing
+The Lucide list-todo Home icon uses a static 128-byte bitmap per consuming
+translation unit; it adds no owned heap storage. There are no additional worker
+tasks, framebuffers, or runtime dependencies. The existing
 keyboard owns its own temporary text string. A future text input can replace the
 `enterText`/`acceptText` boundary without changing the model or storage.
 
@@ -110,6 +114,7 @@ sh test/todo/run.sh
 ../.venv/bin/python test/todo/reader_smoke.py
 sh freeink-sdk/libs/ui/FreeInkUI/test/host/run.sh
 ../.venv/bin/python test/todo/visuals.py
+../.venv/bin/python test/todo/native_appearance.py
 ```
 
 The first runs model/persistence checks under AddressSanitizer and UBSan using
@@ -118,7 +123,11 @@ keyboard, dialogs and host-backed SD with scripted SDL touch events. The visual 
 selection and damaged-data states across all five themes, verifies that task
 snapshots are unchanged, and exports PNGs for inspection. Its list-Home entry
 uses the simulator Confirm key for QA; the dedicated workflow test remains
-touch-only. Test data
+touch-only. The native appearance check compares selected background pixels
+against actual Settings screens in Classic, Lyra and RoundedRaff, and verifies
+checkbox focus through the keyboard target. These capture checks need Pillow
+in the workspace virtual environment (`../.venv/bin/python -m pip install Pillow`).
+Test data
 and logs stay under the parent workspace's `qa-artifacts/` and `logs/`.
 
 Physical Picco validation remains required: touch calibration, all orientations,

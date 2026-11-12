@@ -99,6 +99,15 @@ with tempfile.TemporaryDirectory(prefix='checkbox-pages-', dir=artifacts) as dir
     assert not any(t['id'] == 1 for t in remaining['tasks'])
     assert all(not t['completed'] for t in remaining['tasks'])
 
+with tempfile.TemporaryDirectory(prefix='checkbox-last-row-', dir=artifacts) as directory:
+    sd = Path(directory)
+    seed(sd, [dict(id=i + 1, completed=False, text=f'Task {i + 1:02}') for i in range(32)])
+    run('last-checkbox', home + '300:SWIPE:240,650,240,200;800:SWIPE:240,650,240,200;'
+        '1300:SWIPE:240,650,240,200;1800:TAP:55,696;2300:QUIT', sd)
+    saved = latest(sd)
+    assert saved['tasks'][31]['completed'] and saved['generation'] == 2
+    assert all(not t['completed'] for t in saved['tasks'][:31])
+
 with tempfile.TemporaryDirectory(prefix='checkbox-wrapped-', dir=artifacts) as directory:
     sd = Path(directory)
     seed(sd, [dict(id=1, completed=True, text='Completed task with a description long enough to wrap across two lines and truncate at the visible boundary. Café 日本語')])

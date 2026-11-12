@@ -80,7 +80,6 @@ void TodoActivity::provideRow(void* context, uint16_t index, fui::ListItem& item
   item.enabled = self.store.canEdit();
   if (self.view == View::Tasks && index == 0) {
     item.label = tr(STR_TODO_NEW);
-    item.bold = item.enabled;
     return;
   }
   const auto taskIndex = self.view == View::Tasks ? index - 1 : index;
@@ -138,16 +137,8 @@ void TodoActivity::buildScreen(UiScreen& screen) {
     button.label = deleteLabel;
     button.action = ACTION_DELETE_SELECTED;
     button.enabled = selection != 0 && store.canEdit();
-    button.styles = theme.button;
-    button.styles.normal.border = button.styles.normal.foreground;
-    button.styles.normal.borderWidth = 1;
-    button.styles.disabled.border = fui::Paint::none();
-    button.styles.disabled.borderWidth = 0;
-    button.text = button.enabled ? theme.bodyText : theme.smallText;
-    button.radius = theme.listRowRadius;
-    const int16_t height = std::max<int16_t>(screen.theme().rowHeight, screen.theme().minTouchSize);
-    const auto inset = std::max<int16_t>(0, theme.listInset);
-    const auto rect = screen.takeBottom(height, theme.spaceMd).inset(fui::Insets{0, inset, 0, inset});
+    const int16_t inset = static_cast<int16_t>(theme.spaceLg * 2);
+    const auto rect = screen.takeBottom(theme.rowHeight, theme.spaceLg).inset(fui::Insets{0, inset, 0, inset});
     screen.button(button, rect);
   }
   if (const char* error = statusText()) {
@@ -171,17 +162,14 @@ void TodoActivity::buildScreen(UiScreen& screen) {
   props.inputMask = fui::InputTouch;
   props.labelText = screen.theme().bodyText;
   props.labelText.maxLines = 2;
-  // At most ten full rows: two hits per task plus chrome stay within the
-  // shared host's 24 interactions, even on taller displays and compact themes.
-  props.rowHeight = std::max<int16_t>(std::max<int16_t>(64, screen.theme().rowHeight),
-                                      static_cast<int16_t>((screen.body().height + 9) / 10));
+  props = screen.resolveListProps(props);
+  // Preserve native row sizing while bounding the two-hit task rows to the
+  // shared host's 24 interactions, including header actions and New task.
+  if (view == View::Tasks && listCount() > 10) {
+    const int16_t maxHeight = static_cast<int16_t>(props.rowHeight * 10 + props.rowGap * 9);
+    if (screen.body().height > maxHeight) screen.takeBottom(screen.body().height - maxHeight);
+  }
   syncListViewport(screen, props);
-  // Keep persistent focus light while retaining the theme's active tap feedback.
-  props.rowStyles.selected = props.rowStyles.normal;
-  props.selectionMarker = store.canEdit() ? fui::SelectionMarker::Underline : fui::SelectionMarker::None;
-  props.markerThickness = 1;
-  props.markerPaint = props.rowStyles.normal.foreground;
-  props.underlineFitsText = true;
   if (!store.model().size()) {
     screen.list(props, static_cast<int16_t>(props.rowHeight + props.rowGap));
     if (status == TodoStore::Status::Ok) screen.centeredText(tr(STR_TODO_EMPTY));
@@ -196,6 +184,7 @@ void TodoActivity::toggleTask(int index) {
     if (view != View::Tasks) return;
     const auto* task = store.model().at(index);
     if (!task) return;
+    nav.selected = index + 1;
     status = store.change(TodoStore::Change::Toggle, task->id);
   }
   requestUpdate();

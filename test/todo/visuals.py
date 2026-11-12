@@ -44,8 +44,9 @@ def run(theme, case, tasks, *, damaged=False, hide_battery=False):
         # The dedicated simulator.py regression exercises touch-only navigation.
         entry = ('300:TAP:410,760;' if theme == 4 else
                  '300:DOWN;600:DOWN;900:DOWN;1200:DOWN;1500:ENTER;')
-        script = '0:WAIT:Entering activity: Home;' + entry + '0:WAIT:Entering activity: Todo;'
+        home = ART / f'{name}-home.bmp'
         paths = [ART / f'{name}.bmp']
+        script = f'0:WAIT:Entering activity: Home;200:SHOT:{home};' + entry + '0:WAIT:Entering activity: Todo;'
         script += f'400:SHOT:{paths[0]};'
         if tasks and not damaged:
             paths += [ART / f'{name}-delete-disabled.bmp', ART / f'{name}-delete-selected.bmp']
@@ -61,22 +62,27 @@ def run(theme, case, tasks, *, damaged=False, hide_battery=False):
         assert result.returncode == 0, f'{name}: see log'
         assert (sd / '.crosspoint/todo-a.json').read_bytes() == saved
         assert not (sd / '.crosspoint/todo-b.json').exists(), f'{name}: unexpected save'
-        for path in paths:
+        for path in [home, *paths]:
             assert path.exists(), path
             subprocess.run(['/usr/bin/sips', '-s', 'format', 'png', str(path), '--out', str(path.with_suffix('.png'))],
                            check=True, capture_output=True)
         print(name, 'PASS', flush=True)
 
 
-with ThreadPoolExecutor(max_workers=3) as executor:
-    jobs = []
-    for theme in range(len(THEMES)):
-        jobs.append(executor.submit(run, theme, 'empty', []))
-        jobs.append(executor.submit(run, theme, 'tasks', [
-            dict(id=1, completed=False, text='Read a chapter'),
-            dict(id=2, completed=True, text='Return library books with a longer description that wraps and truncates at two lines'),
-        ]))
-        jobs.append(executor.submit(run, theme, 'error', [], damaged=True, hide_battery=True))
-    for job in jobs:
-        job.result()
-print('All five theme visual states passed; no task snapshots changed')
+def main():
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        jobs = []
+        for theme in range(len(THEMES)):
+            jobs.append(executor.submit(run, theme, 'empty', []))
+            jobs.append(executor.submit(run, theme, 'tasks', [
+                dict(id=1, completed=False, text='Read a chapter'),
+                dict(id=2, completed=True, text='Return library books with a longer description that wraps and truncates at two lines'),
+            ]))
+            jobs.append(executor.submit(run, theme, 'error', [], damaged=True, hide_battery=True))
+        for job in jobs:
+            job.result()
+    print('All five theme visual states passed; no task snapshots changed')
+
+
+if __name__ == '__main__':
+    main()
