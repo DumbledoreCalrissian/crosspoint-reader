@@ -58,6 +58,8 @@ class HomeActivity final : public Activity {
     if (item == HomeMenuItem::FILE_TRANSFER || item == HomeMenuItem::OPDS_BROWSER) return i;
     ++i;
     if (item == HomeMenuItem::SETTINGS_MENU) return i;
+    ++i;
+    if (item == HomeMenuItem::TODO) return i;
     return 0;
   }
 
@@ -68,7 +70,8 @@ class HomeActivity final : public Activity {
     if (idx == i++) return HomeMenuItem::LIBRARY;
     if (slot != HomeMenuItem::NONE && idx == i++) return slot;
     if (idx == i++) return HomeMenuItem::FILE_TRANSFER;
-    if (idx == i) return HomeMenuItem::SETTINGS_MENU;
+    if (idx == i++) return HomeMenuItem::SETTINGS_MENU;
+    if (idx == i) return HomeMenuItem::TODO;
     return HomeMenuItem::NONE;
   }
   void onRecentBookSelected(const std::string& path);

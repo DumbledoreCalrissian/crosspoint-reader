@@ -23,11 +23,12 @@
 #include "MappedInputManager.h"
 #include "OpdsServerStore.h"
 #include "RecentBooksStore.h"
+#include "activities/todo/TodoActivity.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 
 int HomeActivity::getMenuItemCount() const {
-  int count = 4;  // File Browser, Library, File transfer, Settings
+  int count = 5;  // File Browser, Library, File transfer, Settings, Todo
   if (!recentBooks.empty()) {
     count += recentBooks.size();
   }
@@ -336,6 +337,13 @@ void HomeActivity::loop() {
       case HomeMenuItem::FILE_TRANSFER:
         onFileTransferOpen();
         break;
+      case HomeMenuItem::TODO:
+        if (auto todo = makeUniqueNoThrow<TodoActivity>(renderer, mappedInput)) {
+          activityManager.replaceActivity(std::move(todo));
+        } else {
+          LOG_ERR("TODO", "Allocation failed: %u bytes", static_cast<unsigned>(sizeof(TodoActivity)));
+        }
+        break;
       case HomeMenuItem::SETTINGS_MENU:
         onSettingsOpen();
         break;
@@ -550,8 +558,8 @@ void HomeActivity::render(RenderLock&&) {
 
   // Build menu items dynamically
   std::vector<const char*> menuItems = {tr(STR_BROWSE_FILES), tr(STR_LIBRARY), tr(STR_FILE_TRANSFER),
-                                        tr(STR_SETTINGS_TITLE)};
-  std::vector<UIIcon> menuIcons = {Folder, Library, Transfer, Settings};
+                                        tr(STR_SETTINGS_TITLE), tr(STR_TODO)};
+  std::vector<UIIcon> menuIcons = {Folder, Library, Transfer, Settings, Book};
 
   if (slotItem() != HomeMenuItem::NONE) {
     menuItems.insert(menuItems.begin() + 2, hasPlugins ? tr(STR_PLUGINS) : tr(STR_OPDS_BROWSER));
