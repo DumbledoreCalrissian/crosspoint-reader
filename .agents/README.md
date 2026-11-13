@@ -1,6 +1,8 @@
-# CrossPoint Reader agent instructions
+# Picco fork agent instructions
 
-The root `AGENTS.md` is the always-loaded policy and router. Detailed repository facts live in `rules/`; reusable procedures and review axes live in `skills/`.
+The root `AGENTS.md` is the policy and router for this independent Picco fork.
+`SCOPE.md` defines its product boundaries; upstream scope and branch policy do not
+override current owner requirements. Detailed repository facts live in `rules/`; reusable procedures and review axes live in `skills/`.
 
 Inspect the relevant code and current behavior first. Use the root routing table
 to find guidance for changed decisions, then read only the relevant sections.

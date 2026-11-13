@@ -1,45 +1,39 @@
-# Development Workflow
+# Development workflow for the Picco fork
 
-This page defines the expected local workflow before opening a pull request.
+## Start from the actual checkout
 
-## 1) Fork and create a focused branch
+Inspect the branch, remotes, status and SDK gitlink. The downstream integration
+branch is `picco`; keep a suitable current checkout unless the task requires
+another branch. `develop` is an upstream comparison base, not an instruction to
+switch branches or retarget this fork's work. Local remote names vary: verify
+URLs instead of assuming that `origin` is upstream or a personal fork.
 
-- Fork the repository to your own GitHub account
-- Clone your fork locally and add the upstream repository if needed
-- Enable repo hooks once per clone: `git config core.hooksPath .githooks && chmod +x .githooks/pre-commit`
+Read [SCOPE.md](../../SCOPE.md) and the current task/handoff. Preserve unrelated
+uncommitted changes. Keep each change focused, and trace the implementation
+before adding settings, state, dependencies or abstractions.
 
-- Branch from `develop`
-- Keep each PR focused on one fix or feature area
+## Verify the changed behavior
 
-## 2) Implement with scope in mind
+Use the existing environment and explicit `picco` / `simulator_picco` profiles.
+Run relevant host checks, use `./bin/clang-format-fix -g` for changed tracked C/C++
+sources, and inspect `git diff --check`. Record the revision, commands and results.
+Use the application-specific test guides for the affected paths. The
+[testing guide](testing-debugging.md) distinguishes host, simulator and device checks.
 
-- Confirm your idea is in project scope: [SCOPE.md](../../SCOPE.md)
-- Prefer incremental changes over broad refactors
+Retained upstream CI definitions are not proof of checks on this fork. Firmware
+changes follow [AGENTS.md](../../AGENTS.md) and its firmware-handoff workflow;
+documentation-only changes use the lighter applicable checks. Preserve green
+results unless a change or failure invalidates them.
 
-## 3) Run local checks
+## Commit, review and publication
 
-```sh
-./bin/clang-format-fix
-pio check --fail-on-defect low --fail-on-defect medium --fail-on-defect high
-pio run
-```
+Agents require explicit owner approval for local commits. Approval to edit or
+commit does not authorize pushing, release publication, PR actions or flashing.
+The human owns PR descriptions and publication. If the owner chooses a downstream
+PR, its integration target is `picco` unless explicitly specified otherwise.
+Upstream proposals are separate work and follow upstream's current rules.
 
-CI enforces formatting, static analysis, and build checks.
-Use clang-format 21+ locally to match CI.
-If `clang-format` is missing or too old locally, see [Getting Started](./getting-started.md).
-
-## 4) Open the PR
-
-- Target `develop` (the repository's default branch)
-- Use a semantic title (example: `fix: avoid crash when opening malformed epub`)
-- Fill out `.github/PULL_REQUEST_TEMPLATE.md`
-- Describe the problem, approach, and any tradeoffs
-- Include reproduction and verification steps for bug fixes
-
-## 5) Review etiquette
-
-- Be explicit and concise in responses
-- Keep discussions technical and respectful
-- Assume good intent and focus on code-level feedback
-
-For community expectations, see [GOVERNANCE.md](../../GOVERNANCE.md).
+Describe concrete behavior, resource ownership, storage compatibility and test
+limits. Be clear whether a feature is planned, implemented, tested, committed or
+hardware-verified. Respond to review respectfully and keep technical evidence
+separate from assumptions. See [GOVERNANCE.md](../../GOVERNANCE.md).

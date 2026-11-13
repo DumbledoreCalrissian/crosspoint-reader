@@ -1,6 +1,7 @@
 # Firmware licenses
 
-CrossPoint's original code uses the MIT license in the root `LICENSE` file.
+This independent Picco fork retains CrossPoint's original MIT notice in the root `LICENSE` file.
+See [ATTRIBUTIONS.md](../ATTRIBUTIONS.md) for source provenance and downstream changes.
 Third-party code and assets keep their own licenses.
 The combined firmware executable uses GPLv3 because it includes wolfSSL.
 
@@ -20,11 +21,11 @@ Keep these sources and this license file available with the firmware downloads.
 
 To build the same source revision:
 
-1. Clone the repository with `git clone --recursive https://github.com/crosspoint-reader/crosspoint-reader.git`.
+1. Clone the fork with `git clone --recursive https://github.com/DumbledoreCalrissian/crosspoint-reader.git`.
 2. Select the release tag with `git checkout <release-tag>`.
 3. Download the matching SDK with `git submodule update --init --recursive`.
-4. Follow `docs/contributing/getting-started.md` for the build tools.
-5. Build the required device with `pio run -e <environment>`.
+4. Follow [the fork setup guide](../docs/contributing/getting-started.md) for the build tools.
+5. For this fork's Picco target, build with `pio run -e picco`.
 
 `platformio.ini` selects the platform, dependency versions, build flags, and patch scripts.
 The source packages listed in the release file include third-party code that the GitHub source archive omits.

@@ -1,13 +1,16 @@
-# Local reading statistics: milestone 1
+# BOOX Picco EPUB reading statistics: milestone 1
 
 This milestone implements and tests the collection and storage foundation.
 It is not connected to the reader, Home, Library or settings yet. Installing
 this revision does not start collecting reading statistics or add any controls.
 Existing saved positions and plugin reading-session events are unchanged.
 
-The intended first feature collects reading time and forward page turns locally,
-with saved-position percentages in Library and progress/time on Home. Reader
-integration and screens are subsequent milestones.
+The target is BOOX Picco and the format is EPUB. The intended feature collects
+per-EPUB reading time and forward page turns, with EPUB percentages in Library
+and current-EPUB progress/time on Home across the existing themes. The collector
+and store are format-independent internals; this does not require integrating
+other book formats or devices. The current milestones are defined in the
+workspace READING_STATS_PLAN.md and docs/reading-stats-handoff.md.
 
 ## Counting contract
 
@@ -87,7 +90,7 @@ All integers are explicitly little-endian; no native struct layout is written.
 
 Record size is `36 + path length`, at most 547 bytes. Snapshot generations do
 not wrap: exhaustion is reported. Temporary files are never treated as committed
-records or included in totals by a future aggregator.
+records or treated as the saved record by readers or views.
 
 ### Save and recovery
 
@@ -127,11 +130,12 @@ proof against card-controller or FAT metadata loss.
 
 The collector has no allocation. Store retains one 512-byte path buffer, an
 80-byte filename stem and scalar state. A checked workspace allocation of about
-2.1 KiB owns the 547-byte encoding buffer, two decoded records and normalized
-path scratch. It is allocated once on the first load, reused for later loads,
+2.1 KiB (2,136 bytes in the Picco build) owns the 547-byte encoding buffer, two
+decoded records and normalized path scratch. It is allocated once on the first
+load, reused for later loads,
 saves and resets, and freed with the store. Allocation failure returns
 `OutOfMemory` without touching disk. No function places these large buffers on
-the C3's stack, and no new static mutable buffer or resident service is added.
+the caller's stack, and no new static mutable buffer or resident service is added.
 HAL file handles retain their existing allocation, mutex and destructor behavior.
 Final physical stack margin and runtime heap measurements remain pending
 integration/hardware checks.
@@ -147,6 +151,8 @@ cmake --build build/test --target ReadingStatsTest -j 6
 Tests include exact dwell boundaries, preview/idle behavior, pauses and final
 pages, rollover and saturation, golden serialized bytes independently generated
 with Python struct/zlib, UTF-8 paths, collisions, every short write, corruption,
-unsupported formats, reset and retry. Host fault injection is not physical-card
-verification. Reader integration, aggregation, cache/delete workflows, UI and
-save-error reporting are not claimed by milestone 1.
+unsupported record versions, reset and retry. Host fault injection is not physical-card
+verification. EPUB reader integration, book-statistics/reset UI, Library/Home
+displays and save-error reporting remain work for milestones 2 and 3. Overall
+aggregation, other-format integration and other-device validation are outside
+this effort.

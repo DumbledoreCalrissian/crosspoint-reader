@@ -1,6 +1,6 @@
 ---
 name: heap-discipline
-description: ESP32-C3 allocation discipline. Use when changing allocation size/failure handling, buffer or cache lifetime, or hot-path container growth.
+description: Embedded allocation and lifetime discipline for the selected board. Use when changing allocation size/failure handling, buffer or cache lifetime, or hot-path container growth.
 ---
 
 # Heap Discipline

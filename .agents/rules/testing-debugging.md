@@ -38,11 +38,14 @@ alter firmware output/build. Check ignored outputs before staging, using the
 Human device checks cover changed behavior, relevant orientations/remapping,
 and resource/cache effects. Changed input, display, or layout paths cover all
 four orientations: portrait, inverted, landscape CW, and landscape CCW.
-C3 baseline target: more than 50 KB free and no leaks;
-measure internal/PSRAM heaps and largest blocks separately across relevant repeated
+Use the selected Picco profile's measured budget; inherited C3 headroom guidance
+(above 50 KB free) is compatibility context when changing shared allocation paths,
+not a new device test target. Measure internal/PSRAM heaps and largest blocks
+separately across relevant repeated
 book, dictionary, font, or WiFi transitions. Free bytes alone do not prove an
 allocation will fit. For layout changes, back up progress and verify affected
-cache regeneration, including TXT/Markdown and partial-build resume when relevant.
+cache regeneration and partial-build resume where the changed code affects them.
+Preserving other-format behavior is not authorization to add statistics to it.
 
 ### Debugging Crashes
 

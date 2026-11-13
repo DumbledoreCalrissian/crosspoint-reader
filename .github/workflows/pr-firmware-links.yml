@@ -94,9 +94,8 @@ jobs:
               });
               body += `Automatically generated for the latest commit of this PR (\`${shortSha}\`).\n\n`;
               body += `${links.join('\n')}\n\n`;
-              body += 'Download the file for your device, extract the `.bin` from the ZIP, then flash it with ';
-              body += '[CrossPoint Reader Flash Tools](https://crosspointreader.com/#flash-tools). ';
-              body += '**Make sure you use the correct firmware file for your device.**';
+              body += 'These are build artifacts, not proof of hardware validation. ';
+              body += `See [this fork's build and verification notes](https://github.com/${owner}/${repo}/blob/${run.head_sha}/README.md).`;
 
               if (run.conclusion !== 'success') {
                 body += `\n\n> The firmware builds succeeded, but [another CI check finished with ${run.conclusion}](${run.html_url}).`;

@@ -7,7 +7,7 @@ than assuming `origin` is a fork or that an `upstream` remote exists.
 
 ### Git Operation Rules
 
-- Integration and PR comparisons target `develop`, not `master` or remote HEAD.
+- This fork integrates on `picco`. Reuse the current suitable checkout; do not switch to `develop` or create a worktree without a concrete task need. Use the owner-specified comparison base. An explicitly requested upstream contribution follows upstream's own target rules separately.
 - Authorization follows [human ownership](../../AGENTS.md#human-ownership).
   Before an explicitly requested push, recheck remotes and use the destination
   specified by the human. Otherwise prefer the personal-fork remote (`fork`

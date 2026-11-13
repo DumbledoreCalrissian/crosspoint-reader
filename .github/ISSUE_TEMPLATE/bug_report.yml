@@ -12,15 +12,11 @@ body:
     id: device
     attributes:
       label: Device
-      description: Which device does this happen on? Pick "Other" for boards CrossPoint does not release firmware for — those are maintained in their own port repositories.
+      description: Distinguish the physical Picco from simulator or inherited-profile results.
       options:
-        - Xteink X3
-        - Xteink X4
-        - Xteink X4 Classic
-        - Xteink X4 Pro
-        - Seeed Sticky
-        - M5Stack Paper Mono
-        - Other / not listed
+        - BOOX Picco (physical hardware)
+        - Picco desktop simulator
+        - Other inherited profile (not a fork validation target)
     validations:
       required: true
 
@@ -28,7 +24,7 @@ body:
     id: version
     attributes:
       label: Affected Version
-      description: What version of the project/library are you using? (e.g., v1.2.3, master branch commit SHA)
+      description: What version of the project/library are you using? (the picco branch commit SHA and build profile)
       placeholder: Ex. v1.2.3
     validations:
       required: true

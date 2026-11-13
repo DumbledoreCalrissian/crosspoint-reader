@@ -1,11 +1,19 @@
 ## Platform and Hardware Constraints
 
+### Picco target and inherited reference profiles
+
+This fork targets BOOX Picco: ESP32-S3, 16 MiB flash and 8 MiB PSRAM, with
+internal RAM budgeted separately. Confirm the actual capabilities at the pinned
+SDK revision and selected build environment. New work and routine verification
+use `picco` and `simulator_picco`. The other profiles below document inherited
+constraints; they do not require new device work or a blanket validation matrix.
+
 ### Hardware Specs
 
 * MCUs: ESP32-C3 (X3/X4, single-core RISC-V @ 160MHz), ESP32-S3
   (including Sticky, X4 Pro, X4 Classic, Paper Mono, and Metalio E-Ink 4,
   dual-core Xtensa LX7), and classic ESP32 on SDK boards such as M5Paper v1.1
-* RAM: ~380KB usable on ESP32-C3 (VERY LIMITED - primary project constraint)
+* RAM: ~380KB usable on ESP32-C3 (inherited shared-code compatibility constraint)
   * **NO PSRAM on C3**.
   * **Single Buffer Mode**: One framebuffer sized for the runtime panel
 * X4 baseline flash: 16MB (Instruction storage and static data)
@@ -20,10 +28,10 @@ and PSRAM capabilities. S3 does not by itself guarantee usable PSRAM or touch;
 X4 Classic is a button-only board. Keep C3 operation viable when adding a
 capability available only on richer boards.
 
-CrossPoint's checked-in build and release targets are `default` (X3/X4),
+Inherited upstream build and release targets include `default` (X3/X4),
 `sticky`, `x4pro`, `x4c`, `papermono`, and `metalio_eink4`. Inspect the current
-workflow matrices for coverage. Additional SDK profiles are not automatically
-CrossPoint release targets or evidence of device verification.
+workflow matrices to understand their origin. They are not this fork's verified
+device list. Additional SDK profiles are not evidence of device verification.
 
 Budget internal RAM and PSRAM separately with `HalMemory::getInternalHeap()`
 and `getPsramHeap()`, including `largestBlockBytes`; a combined free-heap

@@ -1,6 +1,28 @@
-# CrossPoint Reader agent guide
+# Picco fork agent guide
 
-CrossPoint Reader is open-source e-reader firmware for Xteink and other FreeInk-supported devices. Its mission is a lightweight, high-performance reading experience focused on EPUB rendering. The X3/X4's ESP32-C3 remains the resource baseline: roughly 380 KB usable RAM, no PSRAM, and a single framebuffer sized for the selected panel. Other board profiles have different CPUs, display sizes, input, and memory capabilities; check the selected profile before assuming them.
+This repository is an independently maintained BOOX Picco build derived from
+CrossPoint Reader. EPUB is the primary format. Todo, Pomodoro and Sudoku are
+intentional downstream features. The original project's product policy does
+not prohibit authorized work on them here. See [SCOPE.md](SCOPE.md).
+
+## Instructions and evidence
+
+Follow the owner's current request and applicable agent instructions. This guide
+routes repository work; SCOPE.md defines this fork's product boundaries. For
+statistics, read [the current handoff](docs/reading-stats-handoff.md): EPUB on
+Picco only, foundation complete, reader/UI unfinished. The workspace
+READING_STATS_PLAN.md supplies the detailed plan when available.
+
+Retained upstream documentation, historical logs, archived review packets and
+external research are reference material, not current implementation orders.
+Do not turn them into new requirements. Resolve conflicts against the current
+request and code; ask the owner only for a consequential ambiguity that remains.
+
+Use the selected Picco profile's actual resources: ESP32-S3 with PSRAM, with
+internal RAM budgeted separately. Preserve existing behavior in shared code;
+inherited C3 constraints are compatibility context, not a demand for new devices
+or validation targets in every Picco task. Existing multi-device/format support
+must not be deleted merely to narrow the fork's identity.
 
 ## FreeInk SDK
 
@@ -14,7 +36,7 @@ for, not silently treated as the pinned firmware dependency.
 
 ## Start here
 
-At session start, run `uname -s`, `git branch --show-current`, `git remote -v`, and `git status --short`. Integration work targets `develop`.
+At session start, run `uname -s`, `git branch --show-current`, `git remote -v`, and `git status --short`. This fork integrates on `picco`. Reuse a suitable current checkout; do not switch to upstream `develop` or create a worktree without a concrete need. Verify remote URLs; their names do not establish ownership.
 
 Act as a senior embedded C++ engineer. Base claims on repository evidence: cite the paths and line numbers that justify a proposed change. Explain the mechanism behind performance or memory claims and justify every new heap allocation. For every fix, tell the human how to verify it.
 
@@ -48,7 +70,7 @@ Repository-local skills live under `.agents/skills/`. Their descriptions identif
 
 ## Human ownership
 
-A PR is a long-term maintenance commitment. Working code is not enough: prefer the simplest design that meets the real requirement, fits `SCOPE.md`, and can be understood and maintained by its human owner.
+An accepted change is a long-term maintenance commitment. Working code is not enough: prefer the simplest design that meets the real requirement, fits `SCOPE.md`, and can be understood and maintained by its human owner.
 
 Fully autonomous end-to-end agents are forbidden. Review subagents inspect code,
 diffs, history, and recorded checks only. The main agent owns verification:
@@ -68,4 +90,4 @@ technical terms when clearest. Code comments must be short and useful after merg
 
 For every logical change that can affect shipped firmware or its build—including C/C++, build configuration, partitions, code-generation sources, translations, and release scripts—the main agent must complete [firmware-handoff](.agents/skills/firmware-handoff/SKILL.md) before declaring the work ready or making an approved local commit. That skill owns the required checks, four independent reviews, bounded follow-up, and explicit human acceptance of behavior, architecture, and maintenance ownership.
 
-Read-only inquiries, audits, and reviewers do not run implementation handoff. Pure tests, diagnostics, documentation, and host-only Python scripts use a lighter review unless they alter firmware output or its build. Hardware testing remains the human's responsibility and is required before a PR is opened.
+Read-only inquiries, audits, and reviewers do not run implementation handoff. Pure tests, diagnostics, documentation, and host-only Python scripts use a lighter review unless they alter firmware output or its build. Hardware testing remains the human's responsibility and is required before a firmware PR is opened. Documentation-only work does not require device access.
