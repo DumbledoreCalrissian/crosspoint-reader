@@ -9,6 +9,7 @@
 class Bitmap;
 class GfxRenderer;
 struct RecentBook;
+struct BookReadingSummary;
 namespace freeink {
 namespace ui {
 struct HeaderProps;
@@ -284,8 +285,9 @@ class BaseTheme {
   virtual void drawSubHeader(const GfxRenderer& renderer, Rect rect, const char* label,
                              const char* rightLabel = nullptr) const;
   virtual void drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std::vector<RecentBook>& recentBooks,
-                                   const int selectorIndex, bool& coverRendered, bool& coverBufferStored,
-                                   bool& bufferRestored, std::function<bool()> storeCoverBuffer) const;
+                                   const BookReadingSummary& readingSummary, const int selectorIndex,
+                                   bool& coverRendered, bool& coverBufferStored, bool& bufferRestored,
+                                   std::function<bool()> storeCoverBuffer) const;
   virtual void drawButtonMenu(GfxRenderer& renderer, Rect rect, int buttonCount, int selectedIndex,
                               const std::function<std::string(int index)>& buttonLabel,
                               const std::function<UIIcon(int index)>& rowIcon) const;
@@ -298,6 +300,11 @@ class BaseTheme {
                             const bool fillMargin = true, const bool isPageBookmarked = false,
                             const bool pageCountEstimated = false);
   static void drawHelpText(const GfxRenderer& renderer, Rect rect, const char* label);
+  // Home's compact current-EPUB line ("42% · 3 h 12 min") with a thin progress
+  // bar under it. Height is 0 when there is nothing known to show.
+  static int readingSummaryHeight(const GfxRenderer& renderer, const BookReadingSummary& summary);
+  static void drawReadingSummary(const GfxRenderer& renderer, Rect rect, const BookReadingSummary& summary,
+                                 bool centered, bool black = true);
   virtual void drawTextField(const GfxRenderer& renderer, Rect rect, const int textWidth, bool cursorMode = false,
                              int contentStartX = 0, int contentWidth = 0) const;
   virtual bool showsFileIcons() const { return false; }

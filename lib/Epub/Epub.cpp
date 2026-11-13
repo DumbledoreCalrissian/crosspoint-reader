@@ -26,7 +26,11 @@
 #include "Epub/parsers/TocNcxParser.h"
 
 Epub::Epub(std::string filepath, const std::string& cacheDir) : filepath(std::move(filepath)) {
-  cachePath = cacheDir + "/epub_" + std::to_string(std::hash<std::string>{}(this->filepath));
+  cachePath = cachePathFor(cacheDir, this->filepath);
+}
+
+std::string Epub::cachePathFor(const std::string& cacheDir, const std::string& filepath) {
+  return cacheDir + "/epub_" + std::to_string(std::hash<std::string>{}(filepath));
 }
 
 bool Epub::findContentOpfFile(std::string* contentOpfFile, ZipFile* sharedZip) const {
@@ -1288,15 +1292,8 @@ int Epub::getSpineIndexForTextReference() const {
 
 // Calculate progress in book (returns 0.0-1.0)
 float Epub::calculateProgress(const int currentSpineIndex, const float currentSpineRead) const {
-  const size_t bookSize = getBookSize();
-  if (bookSize == 0) {
-    return 0.0f;
-  }
-  const size_t prevChapterSize = (currentSpineIndex >= 1) ? getCumulativeSpineItemSize(currentSpineIndex - 1) : 0;
-  const size_t curChapterSize = getCumulativeSpineItemSize(currentSpineIndex) - prevChapterSize;
-  const float sectionProgSize = currentSpineRead * static_cast<float>(curChapterSize);
-  const float totalProgress = static_cast<float>(prevChapterSize) + sectionProgSize;
-  return totalProgress / static_cast<float>(bookSize);
+  if (!bookMetadataCache || !bookMetadataCache->isLoaded()) return 0.0f;
+  return bookMetadataCache->calculateProgress(currentSpineIndex, currentSpineRead);
 }
 
 int Epub::resolveHrefToSpineIndex(const std::string& href) const {

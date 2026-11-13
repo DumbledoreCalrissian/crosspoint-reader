@@ -2,6 +2,7 @@
 
 #include <BoardConfig.h>
 #include <FreeInkUIIcon.h>
+#include <FsHelpers.h>
 #include <GfxRenderer.h>
 #include <HalStorage.h>
 #include <I18n.h>
@@ -27,6 +28,7 @@
 #include "components/icons/search32.h"
 #include "fontIds.h"
 #include "util/BookCacheUtils.h"
+#include "util/BookProgress.h"
 
 namespace fui = freeink::ui;
 
@@ -89,6 +91,8 @@ void LibraryListActivity::onEnter() {
   // needs the card to itself.
   RenderLock lock(*this);
   UiTabListActivity::onEnter();
+  for (auto& entry : progressCache) entry = ProgressCacheEntry{};
+  progressCacheNext = 0;
   app.on(ACTION_SEARCH, &LibraryListActivity::searchActionTrampoline, this);
   app.on(ACTION_REBUILD, &LibraryListActivity::rebuildActionTrampoline, this);
   app.on(ACTION_BACK, &LibraryListActivity::backActionTrampoline, this);
@@ -706,10 +710,12 @@ void LibraryListActivity::rebuildActionTrampoline(const fui::ActionEvent&, void*
 // Title and author for one entry, read straight from the index. Only ever
 // called for rows about to be drawn, so at most a screenful of strings exists
 // at once.
-bool LibraryListActivity::rowTextFor(const int entry, std::string& title, std::string& author, std::string* fileName) {
+bool LibraryListActivity::rowTextFor(const int entry, std::string& title, std::string& author, std::string* fileName,
+                                     std::string* fullPath) {
   title.clear();
   author.clear();
   if (fileName) fileName->clear();
+  if (fullPath) fullPath->clear();
   if (entry < pinnedCount()) {
     const auto& books = RECENT_BOOKS.getBooks();
     if (entry < 0 || entry >= static_cast<int>(books.size())) return false;
@@ -717,6 +723,7 @@ bool LibraryListActivity::rowTextFor(const int entry, std::string& title, std::s
     title = book.title;
     author = book.author;
     if (fileName) *fileName = book.path;
+    if (fullPath) *fullPath = book.path;
     return true;
   }
   const uint16_t ordinal = index.ordinalForRow(sortOrder, static_cast<uint16_t>(rowFor(entry)));
@@ -730,9 +737,21 @@ bool LibraryListActivity::rowTextFor(const int entry, std::string& title, std::s
     // The stored title when the book gave one, the filename otherwise.
     if (!index.readTitle(record, title) || title.empty()) index.readName(record, title);
     if (fileName) index.readName(record, *fileName);
+    if (fullPath && !index.readPath(record, *fullPath)) fullPath->clear();
   }
   if (title.empty()) title = tr(STR_LIBRARY_UNKNOWN_TITLE);
   return true;
+}
+
+int LibraryListActivity::cachedEpubProgress(const std::string& path) {
+  for (const auto& entry : progressCache)
+    if (!entry.path.empty() && entry.path == path) return entry.percent;
+  // A never-opened book costs one existence check; an opened one loads its
+  // cached spine sizes once per visit.
+  const int percent = loadBookProgress(path);
+  progressCache[progressCacheNext] = ProgressCacheEntry{path, static_cast<int8_t>(percent)};
+  progressCacheNext = (progressCacheNext + 1) % PROGRESS_CACHE_SIZE;
+  return percent;
 }
 
 bool LibraryListActivity::handleCustomInput() {
@@ -852,6 +871,12 @@ void LibraryListActivity::buildRows(UiScreen& screen) {
   if (winTitles.size() < cap) winTitles.resize(cap);
   if (winAuthors.size() < cap) winAuthors.resize(cap);
   if (!groupsCollapsed && winHeaders.size() < cap) winHeaders.resize(cap);
+  if (!groupsCollapsed && winPercents.size() < cap) winPercents.resize(cap);
+  if (!groupsCollapsed) {
+    // One slot width for every book row keeps titles aligned.
+    props.leadingText = screen.theme().smallText;
+    props.leadingWidth = screen.frame().target().measureText(props.leadingText.font, "100%", props.leadingText).width;
+  }
   winItems.clear();
   if (winItems.capacity() < cap) winItems.reserve(cap);
 
@@ -860,6 +885,7 @@ void LibraryListActivity::buildRows(UiScreen& screen) {
   uint32_t previousInitial = 0;
   std::string rowFile;
   rowFile.reserve(128);
+  std::string rowPath;
   // Capture this after syncTabListViewport(), which may clamp nav.top.
   const int windowStart = static_cast<int>(props.topIndex);
   for (int entry = windowStart; entry < count && rows < static_cast<int>(cap); entry++) {
@@ -875,7 +901,14 @@ void LibraryListActivity::buildRows(UiScreen& screen) {
         formatInitialHeading(titleInitialFor(bookEntry), title);
       }
     } else {
-      if (!rowTextFor(entry, title, author, &rowFile)) continue;
+      if (!rowTextFor(entry, title, author, &rowFile, &rowPath)) continue;
+      auto& percentText = winPercents[static_cast<size_t>(rows)];
+      percentText[0] = '\0';
+      if (FsHelpers::hasEpubExtension(rowPath)) {
+        const int percent = cachedEpubProgress(rowPath);
+        if (percent >= 0) snprintf(percentText.data(), percentText.size(), "%d%%", percent);
+      }
+      if (percentText[0]) item.leading = percentText.data();
       uint32_t initial = 0;
       bool startsGroup = false;
       if (authorGrouped) {

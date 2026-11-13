@@ -500,6 +500,14 @@ bool BookMetadataCache::load() {
   return true;
 }
 
+float BookMetadataCache::calculateProgress(const int spineIndex, const float spineRead) const {
+  const uint32_t total = spineCount > 0 ? getCumulativeSize(spineCount - 1) : 0;
+  if (total == 0) return 0.0f;
+  const uint32_t previous = spineIndex >= 1 ? getCumulativeSize(spineIndex - 1) : 0;
+  const uint32_t current = getCumulativeSize(spineIndex) - previous;
+  return (static_cast<float>(previous) + spineRead * static_cast<float>(current)) / static_cast<float>(total);
+}
+
 uint32_t BookMetadataCache::getCumulativeSize(const int index) const {
   if (!loaded || index < 0 || index >= spineCount) {
     return 0;

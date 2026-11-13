@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <string>
 
 #include "I18n.h"
@@ -26,6 +27,7 @@
 #include "components/icons/cover.h"
 #include "components/icons/headerIcons.h"
 #include "fontIds.h"
+#include "util/BookReadingSummary.h"
 
 void BaseTheme::setCheckboxRow(freeink::ui::ListItem& item, const bool checked) {
   item.value = nullptr;
@@ -493,8 +495,9 @@ void BaseTheme::drawSubHeader(const GfxRenderer& renderer, Rect rect, const char
 // Draw the "Recent Book" cover card on the home screen
 // TODO: Refactor method to make it cleaner, split into smaller methods
 void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std::vector<RecentBook>& recentBooks,
-                                    const int selectorIndex, bool& coverRendered, bool& coverBufferStored,
-                                    bool& bufferRestored, std::function<bool()> storeCoverBuffer) const {
+                                    const BookReadingSummary& readingSummary, const int selectorIndex,
+                                    bool& coverRendered, bool& coverBufferStored, bool& bufferRestored,
+                                    std::function<bool()> storeCoverBuffer) const {
   const bool hasContinueReading = !recentBooks.empty();
   const bool bookSelected = hasContinueReading && selectorIndex == 0;
 
@@ -697,6 +700,19 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
 
     // "Continue Reading" label at the bottom
     const int continueY = bookY + bookHeight - renderer.getLineHeight(UI_10_FONT_ID) * 3 / 2;
+    if (const int summaryHeight = readingSummaryHeight(renderer, readingSummary)) {
+      constexpr int summaryPadding = 6;
+      const int summaryWidth = std::min(bookWidth - 40, 200);
+      const Rect summaryRect{rect.x + (rect.width - summaryWidth) / 2, continueY - summaryHeight - summaryPadding * 2,
+                             summaryWidth, summaryHeight};
+      if (coverRendered) {
+        const Rect box{summaryRect.x - summaryPadding, summaryRect.y - summaryPadding / 2,
+                       summaryRect.width + summaryPadding * 2, summaryRect.height + summaryPadding};
+        renderer.fillRect(box.x, box.y, box.width, box.height, bookSelected);
+        renderer.drawRect(box.x, box.y, box.width, box.height, !bookSelected);
+      }
+      drawReadingSummary(renderer, summaryRect, readingSummary, true, !bookSelected);
+    }
     if (coverRendered) {
       // Draw box behind "Continue Reading" text (inverted when selected: black box instead of white)
       const char* continueText = tr(STR_CONTINUE_READING);
@@ -993,6 +1009,43 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
                           (availableTitleSpace - titleWidth) / 2,
                       textY, title.c_str());
   }
+}
+
+namespace {
+constexpr int kSummaryBarHeight = 4;
+constexpr int kSummaryBarGap = 3;
+
+void readingSummaryText(const BookReadingSummary& summary, char* out, size_t size) {
+  char time[32];
+  formatReadingTime(summary, time, sizeof(time));
+  if (summary.percent >= 0 && time[0])
+    snprintf(out, size, "%d%% \xC2\xB7 %s", summary.percent, time);
+  else if (summary.percent >= 0)
+    snprintf(out, size, "%d%%", summary.percent);
+  else
+    snprintf(out, size, "%s", time);
+}
+}  // namespace
+
+int BaseTheme::readingSummaryHeight(const GfxRenderer& renderer, const BookReadingSummary& summary) {
+  if (summary.percent < 0 && !summary.timeKnown) return 0;
+  return renderer.getLineHeight(SMALL_FONT_ID) + (summary.percent >= 0 ? kSummaryBarGap + kSummaryBarHeight : 0);
+}
+
+void BaseTheme::drawReadingSummary(const GfxRenderer& renderer, const Rect rect, const BookReadingSummary& summary,
+                                   const bool centered, const bool black) {
+  if (readingSummaryHeight(renderer, summary) == 0 || rect.width <= 0) return;
+  char text[48];
+  readingSummaryText(summary, text, sizeof(text));
+  const auto fitted = renderer.truncatedText(SMALL_FONT_ID, text, rect.width);
+  const int textWidth = renderer.getTextWidth(SMALL_FONT_ID, fitted.c_str());
+  const int textX = centered ? rect.x + (rect.width - textWidth) / 2 : rect.x;
+  renderer.drawText(SMALL_FONT_ID, textX, rect.y, fitted.c_str(), black);
+  if (summary.percent < 0) return;
+  const int barY = rect.y + renderer.getLineHeight(SMALL_FONT_ID) + kSummaryBarGap;
+  renderer.drawRect(rect.x, barY, rect.width, kSummaryBarHeight, black);
+  const int filled = rect.width * std::clamp(summary.percent, 0, 100) / 100;
+  if (filled > 0) renderer.fillRect(rect.x, barY, filled, kSummaryBarHeight, black);
 }
 
 void BaseTheme::drawHelpText(const GfxRenderer& renderer, Rect rect, const char* label) {

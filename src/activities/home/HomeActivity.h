@@ -7,6 +7,7 @@
 #include "RecentBooksStore.h"
 #include "activities/Activity.h"
 #include "components/CoverGridHomeUi.h"
+#include "util/BookReadingSummary.h"
 #include "util/ButtonNavigator.h"
 
 struct Rect;
@@ -44,6 +45,7 @@ class HomeActivity final : public Activity {
   int coverRectW = 0;
   int coverRectH = 0;
   std::vector<RecentBook> recentBooks;
+  BookReadingSummary readingSummary;  // first recent book; read once per visit
   const HomeMenuItem initialMenuItem;
   const bool cleanInitialRefresh;
 

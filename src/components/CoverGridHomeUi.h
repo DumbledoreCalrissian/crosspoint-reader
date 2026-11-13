@@ -58,6 +58,7 @@ class CoverGridHomeUi final : public UiAppHost {
   SlotTab slotTab = SlotTab::NONE;
   bool hasContinueReading = false;
   char progressText[12]{};
+  char timeText[32]{};
   // Component styles and interaction tables stay off the render task's stack.
   freeink::ui::BookCardProps card;
   freeink::ui::CoverGridProps grid;

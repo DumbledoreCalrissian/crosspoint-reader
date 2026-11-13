@@ -287,6 +287,8 @@ void HomeActivity::onEnter() {
                        : slot == HomeMenuItem::OPDS_BROWSER ? CoverGridHomeUi::SlotTab::OPDS
                                                             : CoverGridHomeUi::SlotTab::NONE,
                        hasContinueReading);
+  } else {
+    readingSummary = hasContinueReading ? loadBookReadingSummary(recentBooks.front().path) : BookReadingSummary{};
   }
 
   const auto base = static_cast<int>(recentBooks.size());
@@ -595,7 +597,7 @@ void HomeActivity::render(RenderLock&&) {
   coverRectH = metrics.homeCoverTileHeight;
 
   GUI.drawRecentBookCover(renderer, Rect{content.x, metrics.homeTopPadding, content.width, metrics.homeCoverTileHeight},
-                          recentBooks, selectorIndex, coverRendered, coverBufferStored, bufferRestored,
+                          recentBooks, readingSummary, selectorIndex, coverRendered, coverBufferStored, bufferRestored,
                           std::bind(&HomeActivity::storeCoverBuffer, this));
 
   // Build menu items dynamically

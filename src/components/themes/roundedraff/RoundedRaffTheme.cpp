@@ -58,8 +58,9 @@ void RoundedRaffTheme::drawHeader(const GfxRenderer& renderer, Rect rect, const 
 }
 
 void RoundedRaffTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std::vector<RecentBook>& recentBooks,
-                                           const int selectorIndex, bool& coverRendered, bool& coverBufferStored,
-                                           bool& bufferRestored, std::function<bool()> storeCoverBuffer) const {
+                                           const BookReadingSummary& readingSummary, const int selectorIndex,
+                                           bool& coverRendered, bool& coverBufferStored, bool& bufferRestored,
+                                           std::function<bool()> storeCoverBuffer) const {
   const int tileWidth = rect.width - 2 * RoundedRaffMetrics::values.contentSidePadding;
   const int tileHeight = rect.height;
   const int tileY = rect.y;
@@ -132,6 +133,27 @@ void RoundedRaffTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, con
     renderer.fillRoundedRect(tileX, imgY + RoundedRaffMetrics::values.homeCoverHeight, tileWidth,
                              tileHeight - (imgY - tileY + RoundedRaffMetrics::values.homeCoverHeight), kRowRadius,
                              false, false, true, true, Color::LightGray);
+    if (const int summaryHeight = readingSummaryHeight(renderer, readingSummary)) {
+      const int coverX = tileX + (tileWidth - coverWidth) / 2;
+      const int coverBottom = imgY + RoundedRaffMetrics::values.homeCoverHeight;
+      const int band = tileY + tileHeight - coverBottom;
+      const int summaryWidth = std::min(coverWidth, 200);
+      const int summaryX = tileX + (tileWidth - summaryWidth) / 2;
+      if (band >= summaryHeight + 4) {
+        drawReadingSummary(renderer,
+                           Rect{summaryX, coverBottom + (band - summaryHeight) / 2, summaryWidth, summaryHeight},
+                           readingSummary, true);
+      } else {
+        // Too little room under the cover: a white strip across its foot instead.
+        constexpr int summaryPadding = 4;
+        const int stripH = summaryHeight + summaryPadding * 2;
+        renderer.fillRect(coverX, coverBottom - stripH, coverWidth, stripH, false);
+        drawReadingSummary(renderer,
+                           Rect{coverX + summaryPadding, coverBottom - stripH + summaryPadding,
+                                coverWidth - summaryPadding * 2, summaryHeight},
+                           readingSummary, true);
+      }
+    }
   } else {
     renderer.fillRoundedRect(tileX, tileY, tileWidth, tileHeight, kRowRadius, Color::LightGray);
     renderer.drawCenteredText(kTitleFontId, rect.y + rect.height / 2 - renderer.getLineHeight(kTitleFontId) / 2,

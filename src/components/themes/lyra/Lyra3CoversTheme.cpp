@@ -27,8 +27,9 @@ int Lyra3CoversTheme::homeCoverThumbHeight(const GfxRenderer& renderer) const {
 }
 
 void Lyra3CoversTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std::vector<RecentBook>& recentBooks,
-                                           const int selectorIndex, bool& coverRendered, bool& coverBufferStored,
-                                           bool& bufferRestored, std::function<bool()> storeCoverBuffer) const {
+                                           const BookReadingSummary& readingSummary, const int selectorIndex,
+                                           bool& coverRendered, bool& coverBufferStored, bool& bufferRestored,
+                                           std::function<bool()> storeCoverBuffer) const {
   const int tileWidth = (rect.width - 2 * Lyra3CoversMetrics::values.contentSidePadding) / 3;
   const int tileY = rect.y;
   const bool hasContinueReading = !recentBooks.empty();
@@ -108,6 +109,22 @@ void Lyra3CoversTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, con
         renderer.fillRoundedRect(tileX, tileY + Lyra3CoversMetrics::values.homeCoverHeight + hPaddingInSelection,
                                  tileWidth, dynamicTitleBoxHeight, cornerRadius, false, false, true, true,
                                  Color::LightGray);
+      }
+
+      // The current book's line sits on a white strip across the cover's foot.
+      const int summaryHeight = i == 0 ? readingSummaryHeight(renderer, readingSummary) : 0;
+      if (summaryHeight) {
+        constexpr int summaryPadding = 4;
+        const int coverX = tileX + hPaddingInSelection;
+        const int coverW = tileWidth - 2 * hPaddingInSelection;
+        const int stripH = summaryHeight + summaryPadding * 2;
+        const int stripY = tileY + hPaddingInSelection + Lyra3CoversMetrics::values.homeCoverHeight - stripH;
+        renderer.fillRect(coverX, stripY, coverW, stripH, false);
+        renderer.drawRect(coverX, stripY, coverW, stripH, true);
+        drawReadingSummary(
+            renderer,
+            Rect{coverX + summaryPadding, stripY + summaryPadding, coverW - summaryPadding * 2, summaryHeight},
+            readingSummary, true);
       }
 
       int currentY = tileY + Lyra3CoversMetrics::values.homeCoverHeight + hPaddingInSelection + 5;

@@ -2,6 +2,7 @@
 
 #include <LibraryIndexFile.h>
 
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -109,7 +110,10 @@ class LibraryListActivity final : public UiTabListActivity {
   int rowFor(int entry) const;
   // fileName, when asked for, is the on-card name the row's icon derives from
   // (the display title may come from metadata and carry no extension).
-  bool rowTextFor(int entry, std::string& title, std::string& author, std::string* fileName = nullptr);
+  bool rowTextFor(int entry, std::string& title, std::string& author, std::string* fileName = nullptr,
+                  std::string* fullPath = nullptr);
+  // Saved EPUB percentage for a visible row, cached for this visit; -1 when unavailable.
+  int cachedEpubProgress(const std::string& path);
   uint32_t titleInitialFor(int entry);
   bool buildGroupStarts();
   int groupForBook(int bookEntry) const;
@@ -178,6 +182,18 @@ class LibraryListActivity final : public UiTabListActivity {
   std::vector<std::string> winTitles;
   std::vector<std::string> winAuthors;
   std::vector<std::string> winHeaders;
+  std::vector<std::array<char, 6>> winPercents;
+
+  // Recently drawn rows' saved percentages, cleared on entry. Small and
+  // round-robin: scrolling back reuses it, and a large library never fills
+  // more than this.
+  struct ProgressCacheEntry {
+    std::string path;
+    int8_t percent = -1;
+  };
+  static constexpr size_t PROGRESS_CACHE_SIZE = 32;
+  ProgressCacheEntry progressCache[PROGRESS_CACHE_SIZE];
+  size_t progressCacheNext = 0;
 
   // Pinned overlay state: per store entry its RecentAsc row (0xFFFF when the
   // book is not in the index), and the current-direction rows to skip, sorted

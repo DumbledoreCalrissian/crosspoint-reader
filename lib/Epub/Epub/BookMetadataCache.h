@@ -127,6 +127,8 @@ class BookMetadataCache {
   uint32_t getCumulativeSize(int index) const;
   // First spine index whose cumulative size reaches `size` (-1 past the end or not loaded). Reads at most one window.
   int getSpineIndexForSize(uint32_t size) const;
+  // Size-weighted book progress (0.0-1.0) at a fraction through one spine item; 0 when not loaded.
+  float calculateProgress(int spineIndex, float spineRead) const;
   int getSpineCount() const { return spineCount; }
   int getTocCount() const { return tocCount; }
   bool isLoaded() const { return loaded; }

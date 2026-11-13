@@ -1,6 +1,7 @@
 #include "CoverGridHomeUi.h"
 
 #include <BoardConfig.h>
+#include <FsHelpers.h>
 #include <GfxRenderer.h>
 #include <I18n.h>
 
@@ -19,6 +20,7 @@
 #include "icons/sudoku.h"
 #include "icons/todo.h"
 #include "util/BookProgress.h"
+#include "util/BookReadingSummary.h"
 
 namespace fui = freeink::ui;
 namespace {
@@ -41,7 +43,18 @@ void CoverGridHomeUi::begin(const std::vector<RecentBook>& recent, const SlotTab
   app.on(SELECT, &CoverGridHomeUi::onAction, this);
   app.setScreen(&CoverGridHomeUi::screenFn, this);
   refreshCoverPaths();
-  progress = hasContinueReading && !books->empty() ? loadBookProgress(books->front().path) : -1;
+  progress = -1;
+  timeText[0] = '\0';
+  if (hasContinueReading && !books->empty()) {
+    const auto& path = books->front().path;
+    if (FsHelpers::hasEpubExtension(path)) {
+      const auto summary = loadBookReadingSummary(path);
+      progress = summary.percent;
+      formatReadingTime(summary, timeText, sizeof(timeText));
+    } else {
+      progress = loadBookProgress(path);
+    }
+  }
   if (progress >= 0) snprintf(progressText, sizeof(progressText), "%d%%", progress);
 }
 
@@ -189,7 +202,7 @@ void CoverGridHomeUi::drawCurrent(UiScreen& screen, fui::Rect rect, const int co
   const auto& book = books->front();
   card.title = book.title.c_str();
   card.author = book.author.empty() ? nullptr : book.author.c_str();
-  card.meta = nullptr;
+  card.meta = timeText[0] ? timeText : nullptr;
   card.progressLabel = progress >= 0 ? progressText : nullptr;
   card.centerTextOnCover = true;
   card.progress = std::max(0, progress);
@@ -211,6 +224,7 @@ void CoverGridHomeUi::drawCurrent(UiScreen& screen, fui::Rect rect, const int co
   card.titleText = theme.bodyText;
   card.titleText.maxLines = renderer.getScreenWidth() > renderer.getScreenHeight() ? 1 : 2;
   card.authorText = theme.smallText;
+  card.metaText = theme.smallText;
   card.progressText = theme.smallText;
   card.progressHeight = 6;
   card.padding = fui::Insets{6, 6, 6, 6};

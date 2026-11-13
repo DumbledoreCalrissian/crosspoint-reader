@@ -215,8 +215,9 @@ void LyraTheme::drawSideButtonHints(const GfxRenderer& renderer, const char* top
 }
 
 void LyraTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std::vector<RecentBook>& recentBooks,
-                                    const int selectorIndex, bool& coverRendered, bool& coverBufferStored,
-                                    bool& bufferRestored, std::function<bool()> storeCoverBuffer) const {
+                                    const BookReadingSummary& readingSummary, const int selectorIndex,
+                                    bool& coverRendered, bool& coverBufferStored, bool& bufferRestored,
+                                    std::function<bool()> storeCoverBuffer) const {
   const int tileWidth = rect.width - 2 * LyraMetrics::values.contentSidePadding;
   const int tileHeight = rect.height;
   const int tileY = rect.y;
@@ -294,7 +295,9 @@ void LyraTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
     const int titleLineHeight = renderer.getLineHeight(UI_12_FONT_ID);
     const int titleBlockHeight = titleLineHeight * static_cast<int>(titleLines.size());
     const int authorHeight = book.author.empty() ? 0 : (renderer.getLineHeight(UI_10_FONT_ID) * 3 / 2);
-    const int totalBlockHeight = titleBlockHeight + authorHeight;
+    const int summaryHeight = readingSummaryHeight(renderer, readingSummary);
+    const int summaryGap = summaryHeight ? renderer.getLineHeight(UI_10_FONT_ID) / 2 : 0;
+    const int totalBlockHeight = titleBlockHeight + authorHeight + summaryGap + summaryHeight;
     int titleY = tileY + tileHeight / 2 - totalBlockHeight / 2;
     const int textX = tileX + hPaddingInSelection + coverWidth + LyraMetrics::values.verticalSpacing;
     for (const auto& line : titleLines) {
@@ -304,6 +307,11 @@ void LyraTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
     if (!book.author.empty()) {
       titleY += renderer.getLineHeight(UI_10_FONT_ID) / 2;
       renderer.drawText(UI_10_FONT_ID, textX, titleY, author.c_str(), true);
+      titleY += renderer.getLineHeight(UI_10_FONT_ID);
+    }
+    if (summaryHeight) {
+      drawReadingSummary(renderer, Rect{textX, titleY + summaryGap, std::min(textWidth, 200), summaryHeight},
+                         readingSummary, false);
     }
   } else {
     drawEmptyRecents(renderer, rect);
