@@ -26,6 +26,6 @@ for name, order in (("normal", (a, b)), ("reordered", (b, a))):
     bank.build(src, root / name / "out", sources=(("easy", 0, hashlib.sha256(data).hexdigest()),), jobs=1)
 PY
 c++ -std=c++20 -Wall -Wextra -Werror -fsanitize=address,undefined -Itest/sudoku/stubs -Ilib/Sudoku \
-  test/sudoku/tests.cpp lib/Sudoku/SudokuPack.cpp lib/Sudoku/SudokuGame.cpp lib/Sudoku/SudokuStore.cpp \
+  test/sudoku/tests.cpp lib/Sudoku/SudokuCatalog.cpp lib/Sudoku/SudokuPack.cpp lib/Sudoku/SudokuGame.cpp lib/Sudoku/SudokuStore.cpp \
   -o "$artifacts/sudoku-test"
 "$artifacts/sudoku-test" "$fixtures/normal/out/easy.cpsd" "$fixtures/reordered/out/easy.cpsd"

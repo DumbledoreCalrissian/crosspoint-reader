@@ -5,6 +5,8 @@
 
 #include <cstring>
 
+#include "SudokuCatalog.h"
+
 namespace sudoku {
 namespace {
 
@@ -93,6 +95,7 @@ const char* difficultyFileName(const Difficulty difficulty) { return NAMES[stati
 
 PackStatus readPackInfo(const Difficulty difficulty, PackInfo& info) {
   info = {};
+  if (!recoverPack(difficulty)) return PackStatus::Damaged;
   const char* path = packPath(difficulty);
   if (!Storage.exists(path)) return PackStatus::Missing;
   auto file = Storage.open(path);

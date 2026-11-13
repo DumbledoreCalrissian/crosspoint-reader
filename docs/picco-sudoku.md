@@ -20,7 +20,8 @@ Sudoku reads presolved puzzle files from `/games/sudoku/` on the SD card:
 | `hard.cpsd` | 321,592 | 2.5–4.8 |
 | `diabolical.cpsd` | 119,681 | 5.0–9.3 |
 
-Download them from the `sudoku-bank-v2` release of this fork and copy them with
+Install them from **Sudoku settings**, or download the `sudoku-bank-v2` release
+of this fork and copy them with
 USB Drive mode, or create the `games/sudoku` folder in File Transfer and upload
 them. You can install only the difficulties you want. The puzzles come from the
 public-domain [Sudoku Exchange puzzle bank](https://github.com/grantm/sudoku-exchange-puzzle-bank);
@@ -82,7 +83,7 @@ save or from a fresh state. Delete the `.bad` files when no longer needed. Sudok
 leaves unreadable saves in place. If a save cannot be opened or read, the start
 list explains that progress will not be saved until you reopen Sudoku. You can
 keep playing in memory, but those changes are lost when you leave Sudoku.
-Sudoku writes no other files and never changes the puzzle files.
+The board writes no other files. Pack management uses only the paths described below.
 
 ## Sudoku settings
 
@@ -95,6 +96,59 @@ All are on by default and stored in `settings.json`.
 | Check button | Off removes Check. |
 | Reveal button | Off removes Reveal. |
 
+## Downloading and deleting packs
+
+Below the four toggles, settings offers **Download all packs**, then **Download**
+and **Delete** for each difficulty. Each Download row shows Installed, Not
+installed or Damaged, the puzzle count (installed count when available, otherwise
+the published count), and the full download size in bytes. A copied pack may
+have a different puzzle count; the download size always describes the published
+replacement. Show Easy does not hide pack management.
+
+Download opens the existing Wi-Fi selector. It fetches the pinned CPSD v2 assets
+from this fork's `sudoku-bank-v2` release. Download all processes all four,
+including installed difficulties, in order and stops on the first failure or
+cancellation. The result reports how many packs were installed in that attempt;
+completed packs remain installed. Wi-Fi turns off when the transfer ends. Back
+or Done leaves the result and silently restarts into Sudoku settings, with the
+start list underneath so Back still returns to the game list. Cancelling Wi-Fi
+selection also restarts into settings. The normal Home gesture during a transfer
+cancels it; acknowledge the result to return to settings. Manual sleep keeps the
+existing wake/Home policy and does not force a network-exit restart.
+
+The progress screen has a touch **Cancel** button. Hardware Back also cancels
+on boards that have that key. Only an active transfer prevents auto-sleep;
+settings and the result screen use normal idle sleep. The Wi-Fi selector keeps
+its existing sleep policy. After a long synchronous transfer, the normal idle
+interval starts again so the result can be read.
+
+Transfers stream to `/games/sudoku/<difficulty>.part`. An interrupted or
+cancelled transfer keeps this file for HTTP Range resume on the next attempt.
+The retained prefix is hashed again before resuming. If a server ignores Range,
+the download restarts from zero. An invalid Range response is rejected. The
+complete size and SHA256 must match pins built into the firmware; a mismatch
+removes the partial, and failed writes remove it when the card allows removal.
+No unverified file replaces an installed pack. Replacing a pack needs room for
+both old and new copies (up to 33,854,240 extra bytes for Medium).
+
+After verification, installation temporarily renames the old pack to
+`<difficulty>.cpsd.bak`. If the rename of the new pack fails, it restores the old
+one. If storage failure prevents restoration, the backup stays in place; opening
+Sudoku or settings retries recovery. A restart between renames also recovers it.
+FAT and the card do not provide a power-loss transaction guarantee; verify this
+on hardware. Do not remove the backup manually during recovery.
+
+Delete asks for confirmation with Cancel selected first. It removes only that
+difficulty's installed pack, backup and partial, then refreshes its status. It
+never deletes snapshots: **Continue works after pack removal**. Toggles and
+pack deletion are available offline. Downloads are blocked while a failed save
+has left unsaved progress in memory, because the Wi-Fi restart would lose it.
+Open Continue and save successfully before downloading.
+
+The fork owner maintains the release URL, sizes and hashes together with the
+converter provenance. If the release becomes unavailable or changes, downloads
+fail; manually copied CPSD v2 packs keep working. There is no device solver.
+
 ## Limits
 
 - Portrait only, like the other Home apps. No timer, statistics or automatic
@@ -104,11 +158,22 @@ All are on by default and stored in `settings.json`.
 - Memory: the start list owns one puzzle store, which the board borrows;
   puzzle files are read one 96-byte record at a time.
 
+Native milestone 3 build: flash 5,522,762 bytes, 8,464 more than the merged
+milestone 2 baseline (`2441f1c5`); static DRAM remains 112,676 bytes. These are
+linked totals, not runtime measurements. Target debug information reports a
+2,140-byte start-list object, 3,084-byte settings object, 1,356-byte Wi-Fi child
+and 1,140-byte transfer hash state. Parents stay resident beneath children; TLS,
+font caches, sockets, allocator overhead and task stacks are additional costs.
+The hash state is allocated only for one transfer. The existing TLS floor is
+checked after that allocation as well as before starting the flow.
+
 ## Verification
 
 From the firmware root, after `pio run -e simulator_picco`:
 
 ```sh
+sh test/sudoku_download/run.sh
+../.venv/bin/python -I test/sudoku_download/simulator.py
 sh test/sudoku/run.sh
 ../.venv/bin/python test/sudoku/simulator.py
 ../.venv/bin/python -I test/test_sudoku_bank.py
@@ -119,3 +184,16 @@ accuracy at cell edges, readability of notes and of given versus entered digits,
 fast-refresh ghosting during play, save timing on the real SD card, sleep and
 wake with a puzzle open, removing the card while playing, and heap and stack use
 while the board is open.
+
+Download hardware checks: use a backed-up card; cancel partway, reopen Download
+and confirm resumed progress; cut Wi-Fi and retry; replace a copied pack; delete
+it while a saved game exists and Continue that game; exit Wi-Fi and confirm the
+silent restart lands in Sudoku settings, Back returns to the start list, and
+the live frontlight is preserved. Check full/read-only/removed-card messages,
+auto-sleep after a long transfer, manual sleep, and per-pool free/minimum/largest
+heap blocks plus stack high-water marks across repeated TLS transfers. Test header
+Back, touch Cancel, Home cancellation, physical key remapping and all reader
+orientations before returning to portrait Sudoku. A stalled Cancel, lost game,
+wrong restart destination or decreasing largest blocks is a failure sign.
+The simulator's heap/PSRAM/stack readings are mocks and its restart is a no-op;
+physical hardware has never been tested.

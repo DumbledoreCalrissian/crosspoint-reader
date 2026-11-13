@@ -30,6 +30,7 @@
 #include "reader/RemoteTurnGate.h"
 #include "settings/OpdsServerListActivity.h"
 #include "settings/SettingsListActivity.h"
+#include "sudoku/SudokuActivity.h"
 #include "util/BmpViewerActivity.h"
 #include "util/FrontlightPanelActivity.h"
 #include "util/FullScreenMessageActivity.h"
@@ -270,6 +271,16 @@ void ActivityManager::replaceActivity(std::unique_ptr<Activity>&& newActivity) {
     currentActivity = std::move(newActivity);
     currentActivity->onEnter();
   }
+}
+
+void ActivityManager::goToSudokuSettings() {
+  auto sudoku = makeUniqueNoThrow<SudokuActivity>(renderer, mappedInput, true);
+  if (!sudoku) {
+    LOG_ERR("ACT", "Allocation failed: %u bytes", static_cast<unsigned>(sizeof(SudokuActivity)));
+    goHome(HomeMenuItem::SUDOKU);
+    return;
+  }
+  replaceActivity(std::move(sudoku));
 }
 
 void ActivityManager::goToFileTransfer() {

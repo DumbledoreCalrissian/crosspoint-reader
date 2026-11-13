@@ -125,7 +125,8 @@ constexpr uint32_t SILENT_REBOOT_TARGET_SETTINGS = 2;
 constexpr uint32_t SILENT_REBOOT_TARGET_JOIN_NETWORK = 3;
 constexpr uint32_t SILENT_REBOOT_TARGET_FILE_TRANSFER = 4;
 constexpr uint32_t SILENT_REBOOT_TARGET_FILE_BROWSER = 5;
-constexpr uint32_t SILENT_REBOOT_TARGET_MAX = SILENT_REBOOT_TARGET_FILE_BROWSER;
+constexpr uint32_t SILENT_REBOOT_TARGET_SUDOKU_SETTINGS = 6;
+constexpr uint32_t SILENT_REBOOT_TARGET_MAX = SILENT_REBOOT_TARGET_SUDOKU_SETTINGS;
 constexpr uint32_t SILENT_REBOOT_LIGHT_ON = 1U << 0;
 
 // How the device is coming back to life, resolved once at boot. Both resume
@@ -176,6 +177,8 @@ static void silentRestartTo(const uint32_t target, const char* targetName) {
 void silentRestart() { silentRestartTo(SILENT_REBOOT_TARGET_HOME, "home"); }
 
 void silentRestartToReader() { silentRestartTo(SILENT_REBOOT_TARGET_READER, "reader"); }
+
+void silentRestartToSudokuSettings() { silentRestartTo(SILENT_REBOOT_TARGET_SUDOKU_SETTINGS, "sudoku-settings"); }
 
 void silentRestartToSettings() { silentRestartTo(SILENT_REBOOT_TARGET_SETTINGS, "settings"); }
 
@@ -795,6 +798,8 @@ void setup() {
   } else if (resume == BootResume::Silent && snapshotTarget == SILENT_REBOOT_TARGET_FILE_BROWSER) {
     // Back from the File Transfer page after Wi-Fi was used: its entry point.
     activityManager.goToFileBrowser("/");
+  } else if (resume == BootResume::Silent && snapshotTarget == SILENT_REBOOT_TARGET_SUDOKU_SETTINGS) {
+    activityManager.goToSudokuSettings();
   } else if (resume == BootResume::Silent && snapshotTarget == SILENT_REBOOT_TARGET_SETTINGS) {
     // Back out of the WiFi rows and the user is where they left off, not on Home.
     activityManager.goToSettings(SettingsSection::Network);
@@ -1045,6 +1050,8 @@ void loop() {
   const unsigned long activityStartTime = millis();
   activityManager.loop();
   const unsigned long activityDuration = millis() - activityStartTime;
+  // A synchronous transfer can finish in an idle state after spanning the timeout.
+  if (keepAwake) lastActivityTime = millis();
 
   const unsigned long loopDuration = millis() - loopStartTime;
   if (loopDuration > maxLoopDuration) {

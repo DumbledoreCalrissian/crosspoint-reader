@@ -9,8 +9,8 @@
 
 /**
  * HTTP client utility for fetching content and downloading files. Built on
- * esp_http_client: https is verified against the CA bundle, plain http is
- * used for local servers (transport is chosen from the URL scheme).
+ * the SDK SecureHttpClient with certificate verification disabled. Callers
+ * needing content integrity must verify a trusted digest before using files.
  */
 class HttpDownloader {
  public:
@@ -25,6 +25,8 @@ class HttpDownloader {
     FILE_ERROR,
     ABORTED,
     UNAUTHORIZED,  // 401/403: callers holding a refreshable credential can retry
+    HASH_ERROR,
+    LOW_MEMORY,
   };
 
   // Pre-flight floor for starting a TLS transfer. Below this the session or
@@ -111,6 +113,13 @@ class HttpDownloader {
                                       ProgressCallback progress = nullptr, const bool* cancelFlag = nullptr,
                                       const std::string& username = "", const std::string& password = "",
                                       const std::vector<Header>& headers = {}, bool downgradeRedirectsToHttp = false);
+
+  // Retains partPath across calls, hashes its prefix and streamed bytes, and
+  // verifies the pinned size and SHA256. Does not install the file. Network
+  // errors/cancellation retain the partial; bad hashes and write errors remove it.
+  static DownloadError downloadVerified(const std::string& url, const std::string& partPath, size_t expectedBytes,
+                                        const char* sha256, ProgressCallback progress = nullptr,
+                                        const std::function<bool()>& shouldAbort = nullptr);
 
   /**
    * POST a body (e.g. an LCP license to the fulfillment service) and stream

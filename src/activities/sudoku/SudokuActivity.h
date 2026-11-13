@@ -8,7 +8,8 @@
 // Sudoku settings.
 class SudokuActivity final : public UiListActivity {
  public:
-  SudokuActivity(GfxRenderer& renderer, MappedInputManager& input) : UiListActivity("Sudoku", renderer, input) {}
+  SudokuActivity(GfxRenderer& renderer, MappedInputManager& input, bool openSettingsOnEnter = false)
+      : UiListActivity("Sudoku", renderer, input), openSettingsOnEnter(openSettingsOnEnter) {}
   void onEnter() override;
   static const char* difficultyLabel(sudoku::Difficulty difficulty);
 
@@ -22,6 +23,7 @@ class SudokuActivity final : public UiListActivity {
     sudoku::Difficulty difficulty;
   };
 
+  const bool openSettingsOnEnter;
   sudoku::SudokuStore store;
   sudoku::PackStatus packStatus[sudoku::DIFFICULTIES]{};
   sudoku::PackInfo packInfo[sudoku::DIFFICULTIES]{};

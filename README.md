@@ -25,7 +25,13 @@
 > Sudoku uses presolved `.cpsd` puzzle files copied to `/games/sudoku/` on the SD
 > card. Get the four difficulty packs from
 > [sudoku-bank-v2](https://github.com/DumbledoreCalrissian/crosspoint-reader/releases/tag/sudoku-bank-v2).
-> Downloading packs from Sudoku settings is not implemented yet.
+> Local milestone 3 work on `feat/sudoku-downloads` adds Download, Download all
+> and Delete in Sudoku settings, with resumable transfers and pinned SHA256
+> verification. Manual copying remains supported. This work is not yet published.
+> Verified native milestone 3 build: flash 5,522,762 bytes (+8,464 versus
+> `2441f1c5`), static DRAM 112,676 bytes (unchanged). Hardware remains untested.
+> The local simulator branch `feat/sudoku-download-tests` supplies streaming HTTP
+> and real SHA256 for its tests; its host build also needs libcurl headers/library.
 >
 > To build this branch in the simulator, clone this repository and the forked
 > simulator side by side:

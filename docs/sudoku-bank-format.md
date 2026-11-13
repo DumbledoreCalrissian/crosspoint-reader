@@ -99,3 +99,21 @@ text in the source repository). The converter writes `PROVENANCE.json` next to
 the files with the source URL and commit, the SHA256 of each input and output
 file, record counts and the converter and format versions. It contains no
 timestamps, so the same input always gives byte-identical output.
+
+## Device download installation
+
+Sudoku settings uses pinned release sizes and SHA256 values in
+`lib/Sudoku/SudokuCatalog.cpp`, matching the converter's v2 provenance. HTTP
+resume writes `<difficulty>.part`, never a playable `.cpsd`. The firmware hashes
+the retained prefix and streamed bytes, requires the complete size and digest,
+and only then installs the file. A hash mismatch removes the partial. Network
+failures and cancellation retain it for the next attempt.
+
+FAT cannot rename over an existing file. The installer temporarily moves the old
+pack to `<difficulty>.cpsd.bak`, installs the verified partial, then removes the
+backup. If the second rename fails it attempts rollback. The pack reader and
+settings recover a backup when the installed name is missing, or remove a stale
+backup when an installed name exists. This does not make FAT power-loss atomic.
+Delete removes the selected pack, backup and partial; it never changes game saves.
+Manual copying remains supported and uses the reader checks above, without
+requiring the published release hash.

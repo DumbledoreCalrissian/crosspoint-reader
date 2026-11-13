@@ -7,8 +7,9 @@
 // comes back exactly as it was, regardless of the Restore Light on Wake
 // preference.
 
-void silentRestart();                // home screen
-void silentRestartToReader();        // currently-open EPUB (APP_STATE.openEpubPath)
+void silentRestart();          // home screen
+void silentRestartToReader();  // currently-open EPUB (APP_STATE.openEpubPath)
+void silentRestartToSudokuSettings();
 void silentRestartToSettings();      // settings screen
 void silentRestartToFileTransfer();  // File Transfer's mode page
 void silentRestartToFileBrowser();   // file browser root (File Transfer's entry point)

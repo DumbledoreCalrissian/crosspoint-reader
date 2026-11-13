@@ -38,6 +38,7 @@ void SudokuActivity::onEnter() {
   refresh();
   app.on(ACTION_BACK, action, this);
   app.on(ACTION_SETTINGS, action, this);
+  if (openSettingsOnEnter) openSettings();
 }
 
 void SudokuActivity::refresh() {
@@ -175,7 +176,7 @@ void SudokuActivity::openBoard() {
 }
 
 void SudokuActivity::openSettings() {
-  auto settings = makeUniqueNoThrow<SudokuSettingsActivity>(renderer, mappedInput);
+  auto settings = makeUniqueNoThrow<SudokuSettingsActivity>(renderer, mappedInput, !store.unsaved());
   if (!settings) {
     LOG_ERR("SUDOKU", "Allocation failed: %u bytes", static_cast<unsigned>(sizeof(SudokuSettingsActivity)));
     notice = tr(STR_SUDOKU_MEMORY_ERROR);

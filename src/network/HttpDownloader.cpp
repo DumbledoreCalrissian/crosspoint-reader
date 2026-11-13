@@ -2,9 +2,12 @@
 
 #include <Arduino.h>
 #include <Logging.h>
+#include <Memory.h>
 #include <ResumableFetch.h>
+#include <mbedtls/sha256.h>
 
 #include <algorithm>
+#include <cstring>
 #include <functional>
 #include <string>
 
@@ -46,10 +49,12 @@ HttpDownloader::DownloadError runGetSecure(const std::string& url, const std::st
                                            const std::string& password,
                                            const std::vector<HttpDownloader::Header>& headers,
                                            const freeink::FetchSink& sink, const bool* cancelFlag = nullptr,
-                                           size_t* bytesOut = nullptr, const bool downgradeRedirectsToHttp = false) {
+                                           size_t* bytesOut = nullptr, const bool downgradeRedirectsToHttp = false,
+                                           size_t startOffset = 0, const std::function<bool()>& shouldAbort = nullptr) {
   WifiPowerSaveGuard psGuard;
   freeink::FetchOptions options;
   options.redirectToHttp = downgradeRedirectsToHttp;
+  options.startOffset = startOffset;
   bool answeredBySameOrigin = true;
   const freeink::FetchResult result = freeink::fetchResumable(
       url, options,
@@ -65,7 +70,7 @@ HttpDownloader::DownloadError runGetSecure(const std::string& url, const std::st
         LOG_DBG("HTTP", "wolfSSL GET: %s (heap %u, max block %u)", url.c_str(), (unsigned)ESP.getFreeHeap(),
                 (unsigned)ESP.getMaxAllocHeap());
       },
-      sink, [cancelFlag] { return cancelFlag && *cancelFlag; });
+      sink, [&] { return (cancelFlag && *cancelFlag) || (shouldAbort && shouldAbort()); });
   if (bytesOut) *bytesOut = result.bytes;
   // FetchResult::status is -1 when no response arrived (bad URL, DNS, connect, TLS).
   g_lastStatus = result.status < 0 ? 0 : result.status;
@@ -306,5 +311,93 @@ HttpDownloader::DownloadError HttpDownloader::downloadToFile(const std::string& 
     return FILE_ERROR;
   }
   LOG_DBG("HTTP", "Downloaded %zu bytes", downloaded);
+  return OK;
+}
+
+HttpDownloader::DownloadError HttpDownloader::downloadVerified(const std::string& url, const std::string& partPath,
+                                                               const size_t expectedBytes, const char* sha256,
+                                                               ProgressCallback progress,
+                                                               const std::function<bool()>& shouldAbort) {
+  struct HashState {
+    mbedtls_sha256_context sha;
+    uint8_t buffer[1024];
+    HashState() { mbedtls_sha256_init(&sha); }
+    ~HashState() { mbedtls_sha256_free(&sha); }
+  };
+  auto hash = makeUniqueNoThrow<HashState>();
+  if (!hash) {
+    LOG_ERR("HTTP", "Hash allocation failed: %u bytes", static_cast<unsigned>(sizeof(HashState)));
+    return LOW_MEMORY;
+  }
+  if (!sha256 || std::strlen(sha256) != 64 || expectedBytes == 0) return HASH_ERROR;
+  if (mbedtls_sha256_starts(&hash->sha, 0) != 0) return FILE_ERROR;
+  HalFile file;
+  size_t held = 0;
+  if (Storage.exists(partPath.c_str())) {
+    if (!Storage.openFileForRead("HTTP", partPath.c_str(), file)) return FILE_ERROR;
+    held = file.fileSize();
+    if (held > expectedBytes) {
+      file.close();
+      if (!Storage.remove(partPath.c_str())) return FILE_ERROR;
+      return HASH_ERROR;
+    }
+    size_t read = 0;
+    while (read < held) {
+      if (shouldAbort && shouldAbort()) return ABORTED;
+      const size_t count = std::min(sizeof(hash->buffer), held - read);
+      if (file.read(hash->buffer, count) != static_cast<int>(count) ||
+          mbedtls_sha256_update(&hash->sha, hash->buffer, count) != 0)
+        return FILE_ERROR;
+      read += count;
+      if (progress) progress(read, expectedBytes);
+      delay(1);
+    }
+    file.close();
+  }
+  DownloadError result = OK;
+  if (held < expectedBytes) {
+    if (ESP.getFreeHeap() < MIN_TLS_FREE_HEAP || ESP.getMaxAllocHeap() < MIN_TLS_MAX_ALLOC) {
+      LOG_ERR("HTTP", "Low heap after hash allocation (%u free, %u max block)", ESP.getFreeHeap(),
+              ESP.getMaxAllocHeap());
+      return LOW_MEMORY;
+    }
+    file = Storage.open(partPath.c_str(), O_WRONLY | O_CREAT);
+    if (!file || !file.seek(held)) return FILE_ERROR;
+    freeink::FetchSink sink;
+    sink.write = [&](const uint8_t* data, size_t len) {
+      if (len > expectedBytes - held) return false;
+      if (file.write(data, len) != len || mbedtls_sha256_update(&hash->sha, data, len) != 0) return false;
+      held += len;
+      return true;
+    };
+    sink.rewind = [&] {
+      file.close();
+      held = 0;
+      return mbedtls_sha256_starts(&hash->sha, 0) == 0 && Storage.openFileForWrite("HTTP", partPath.c_str(), file);
+    };
+    sink.progress = [&](size_t bytes, size_t) {
+      if (progress) progress(bytes, expectedBytes);
+    };
+    result = runGetSecure(url, "", "", {}, sink, nullptr, nullptr, false, held, shouldAbort);
+    if (file.isOpen() && !file.close()) result = FILE_ERROR;
+  }
+  if (result == FILE_ERROR) {
+    if (!Storage.remove(partPath.c_str())) LOG_ERR("HTTP", "Cannot remove failed partial: %s", partPath.c_str());
+    return result;
+  }
+  if (result != OK) return result;
+  if (shouldAbort && shouldAbort()) return ABORTED;
+  uint8_t digest[32];
+  if (mbedtls_sha256_finish(&hash->sha, digest) != 0) return FILE_ERROR;
+  bool matches = held == expectedBytes;
+  constexpr char HEX_DIGITS[] = "0123456789abcdef";
+  for (size_t i = 0; i < sizeof(digest); ++i) {
+    matches = matches && sha256[2 * i] == HEX_DIGITS[digest[i] >> 4] && sha256[2 * i + 1] == HEX_DIGITS[digest[i] & 15];
+  }
+  if (!matches) {
+    LOG_ERR("HTTP", "Pinned size/SHA256 mismatch: %s", partPath.c_str());
+    if (!Storage.remove(partPath.c_str())) return FILE_ERROR;
+    return HASH_ERROR;
+  }
   return OK;
 }
