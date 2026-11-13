@@ -333,6 +333,11 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t pomodoroShortBreakMinutes = DEFAULT_POMODORO_SHORT_BREAK_MINUTES;
   uint8_t pomodoroLongBreakMinutes = DEFAULT_POMODORO_LONG_BREAK_MINUTES;
   uint8_t pomodoroSessionsPerCycle = DEFAULT_POMODORO_SESSIONS;
+  // Sudoku options (1 = on), edited only from Sudoku settings.
+  uint8_t sudokuShowEasy = 1;
+  uint8_t sudokuMarkConflicts = 1;
+  uint8_t sudokuCheckButton = 1;
+  uint8_t sudokuRevealButton = 1;
   // E-ink refresh frequency (default 15 pages)
   uint8_t refreshFrequency = REFRESH_15;
   uint8_t hyphenationEnabled = 0;

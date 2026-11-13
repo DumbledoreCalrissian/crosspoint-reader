@@ -18,7 +18,7 @@
 class Activity;    // forward declaration
 class RenderLock;  // forward declaration
 
-enum class HomeMenuItem { NONE, FILE_BROWSER, LIBRARY, PLUGINS, OPDS_BROWSER, SETTINGS_MENU, TODO, POMODORO };
+enum class HomeMenuItem { NONE, FILE_BROWSER, LIBRARY, PLUGINS, OPDS_BROWSER, SETTINGS_MENU, TODO, POMODORO, SUDOKU };
 
 /**
  * ActivityManager

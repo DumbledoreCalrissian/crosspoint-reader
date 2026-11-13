@@ -149,7 +149,8 @@ enum UIIcon {
   Usb,
   Blocks,
   Todo,
-  Pomodoro
+  Pomodoro,
+  Sudoku
 };
 
 // Default theme implementation (Classic Theme)

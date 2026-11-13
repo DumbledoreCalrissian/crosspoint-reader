@@ -24,9 +24,9 @@ ART.mkdir(exist_ok=True, parents=True)
 
 
 def enter(theme, extra=False, restored=False):
-    # Home rows: Browse Files, Library, [Plugins], Settings, Todo, Pomodoro.
+    # Home rows: Browse Files, Library, [Plugins], Settings, Todo, Pomodoro, Sudoku.
     if theme == 4:
-        return '400:TAP:428,760;'
+        return '400:TAP:352,760;'
     if not extra:
         y = [694, 634, 692, 670][theme]
         return f'400:TAP:240,{y};'
@@ -199,7 +199,8 @@ def button_navigation():
 
 
 def home_scroll_indicator():
-    # Lyra Extended fits five Home rows; with Plugins the sixth needs a visible indicator.
+    # Six shortcuts (with Sudoku) fit Lyra but not Lyra Extended (five rows); Plugins
+    # adds a seventh, which overflows Lyra too.
     def ink(theme, name, extra=None):
         with tempfile.TemporaryDirectory(prefix=f'pomodoro-{name}-', dir=ART) as directory:
             sd = Path(directory)
@@ -215,9 +216,9 @@ def home_scroll_indicator():
         strip = image.crop((464, 380, 480, 790))
         return sum(strip.histogram()[:64])
     plugins = {'pluginsEnabled': 1}
-    assert ink(2, 'home-indicator-lyra-extended', plugins) > 100, 'Lyra Extended Home overflow has no indicator'
-    assert ink(2, 'home-indicator-lyra-extended-fits') == 0, 'Lyra Extended draws an indicator though rows fit'
-    assert ink(1, 'home-indicator-lyra', plugins) == 0, 'Lyra Home draws an indicator although all rows fit'
+    assert ink(2, 'home-indicator-lyra-extended') > 100, 'Lyra Extended Home overflow has no indicator'
+    assert ink(1, 'home-indicator-lyra-fits') == 0, 'Lyra Home draws an indicator although all rows fit'
+    assert ink(1, 'home-indicator-lyra', plugins) > 100, 'Lyra Home overflow with Plugins has no indicator'
     print('Home scroll indicator only when rows overflow PASS', flush=True)
 
 

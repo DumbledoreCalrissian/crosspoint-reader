@@ -245,6 +245,18 @@ void forEachBaseSetting(SettingVisitor visit, void* context) {
                           "pomodoroSessionsPerCycle")
            .withWebHidden());
 
+  // Sudoku options: persisted, edited only from Sudoku settings.
+  emit(SettingInfo::Toggle(StrId::STR_SUDOKU_SHOW_EASY, &CrossPointSettings::sudokuShowEasy, "sudokuShowEasy")
+           .withWebHidden());
+  emit(SettingInfo::Toggle(StrId::STR_SUDOKU_MARK_CONFLICTS, &CrossPointSettings::sudokuMarkConflicts,
+                           "sudokuMarkConflicts")
+           .withWebHidden());
+  emit(SettingInfo::Toggle(StrId::STR_SUDOKU_CHECK_BUTTON, &CrossPointSettings::sudokuCheckButton, "sudokuCheckButton")
+           .withWebHidden());
+  emit(SettingInfo::Toggle(StrId::STR_SUDOKU_REVEAL_BUTTON, &CrossPointSettings::sudokuRevealButton,
+                           "sudokuRevealButton")
+           .withWebHidden());
+
   // Frontlight quick-panel state: persisted and web-exposed, but hidden
   // from the on-device Settings screen because the swipe panel owns it.
   emit(SettingInfo::Value(StrId::STR_BRIGHTNESS, &CrossPointSettings::frontlightBrightness, {0, 100, 5},

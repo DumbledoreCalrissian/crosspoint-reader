@@ -24,13 +24,14 @@
 #include "OpdsServerStore.h"
 #include "RecentBooksStore.h"
 #include "activities/pomodoro/PomodoroActivity.h"
+#include "activities/sudoku/SudokuActivity.h"
 #include "activities/todo/TodoActivity.h"
 #include "components/UITheme.h"
 #include "components/UiAppHelpers.h"
 #include "fontIds.h"
 
 int HomeActivity::getMenuItemCount() const {
-  int count = 5;  // File Browser, Library, Settings, Todo, Pomodoro
+  int count = 6;  // File Browser, Library, Settings, Todo, Pomodoro, Sudoku
   if (!recentBooks.empty()) {
     count += recentBooks.size();
   }
@@ -378,6 +379,13 @@ void HomeActivity::loop() {
           LOG_ERR("POMO", "Allocation failed: %u bytes", static_cast<unsigned>(sizeof(PomodoroActivity)));
         }
         break;
+      case HomeMenuItem::SUDOKU:
+        if (auto sudoku = makeUniqueNoThrow<SudokuActivity>(renderer, mappedInput)) {
+          activityManager.replaceActivity(std::move(sudoku));
+        } else {
+          LOG_ERR("SUDOKU", "Allocation failed: %u bytes", static_cast<unsigned>(sizeof(SudokuActivity)));
+        }
+        break;
       case HomeMenuItem::SETTINGS_MENU:
         onSettingsOpen();
         break;
@@ -592,9 +600,9 @@ void HomeActivity::render(RenderLock&&) {
 
   // Build menu items dynamically
   // File Transfer lives in the file browser's root header.
-  std::vector<const char*> menuItems = {tr(STR_BROWSE_FILES), tr(STR_LIBRARY), tr(STR_SETTINGS_TITLE), tr(STR_TODO),
-                                        tr(STR_POMODORO)};
-  std::vector<UIIcon> menuIcons = {Folder, Library, Settings, Todo, Pomodoro};
+  std::vector<const char*> menuItems = {tr(STR_BROWSE_FILES), tr(STR_LIBRARY),  tr(STR_SETTINGS_TITLE),
+                                        tr(STR_TODO),         tr(STR_POMODORO), tr(STR_SUDOKU)};
+  std::vector<UIIcon> menuIcons = {Folder, Library, Settings, Todo, Pomodoro, Sudoku};
 
   if (slotItem() != HomeMenuItem::NONE) {
     menuItems.insert(menuItems.begin() + 2, hasPlugins ? tr(STR_PLUGINS) : tr(STR_OPDS_BROWSER));

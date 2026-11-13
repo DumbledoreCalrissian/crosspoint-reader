@@ -64,6 +64,8 @@ class HomeActivity final : public Activity {
     if (item == HomeMenuItem::TODO) return i;
     ++i;
     if (item == HomeMenuItem::POMODORO) return i;
+    ++i;
+    if (item == HomeMenuItem::SUDOKU) return i;
     return 0;
   }
 
@@ -75,7 +77,8 @@ class HomeActivity final : public Activity {
     if (slot != HomeMenuItem::NONE && idx == i++) return slot;
     if (idx == i++) return HomeMenuItem::SETTINGS_MENU;
     if (idx == i++) return HomeMenuItem::TODO;
-    if (idx == i) return HomeMenuItem::POMODORO;
+    if (idx == i++) return HomeMenuItem::POMODORO;
+    if (idx == i) return HomeMenuItem::SUDOKU;
     return HomeMenuItem::NONE;
   }
   void onRecentBookSelected(const std::string& path);

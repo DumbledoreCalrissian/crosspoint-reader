@@ -378,6 +378,8 @@ void ActivityManager::goHome(HomeMenuItem initialMenuItem, bool cleanInitialRefr
       initialMenuItem = HomeMenuItem::SETTINGS_MENU;
     } else if (activityName == "Pomodoro") {
       initialMenuItem = HomeMenuItem::POMODORO;
+    } else if (activityName == "Sudoku" || activityName == "SudokuBoard" || activityName == "SudokuSettings") {
+      initialMenuItem = HomeMenuItem::SUDOKU;
     }
   }
   replaceActivity(std::make_unique<HomeActivity>(renderer, mappedInput, initialMenuItem, cleanInitialRefresh));

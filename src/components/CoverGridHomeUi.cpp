@@ -16,6 +16,7 @@
 #include "icons/library.h"
 #include "icons/pomodoro.h"
 #include "icons/settings2.h"
+#include "icons/sudoku.h"
 #include "icons/todo.h"
 #include "util/BookProgress.h"
 
@@ -284,10 +285,10 @@ void CoverGridHomeUi::drawGrid(UiScreen& screen) {
 }
 
 void CoverGridHomeUi::drawTabs(UiScreen& screen, fui::Rect rect) {
-  static constexpr const uint8_t* ICONS[] = {FolderIcon,    LibraryIcon, BlocksIcon,
-                                             Settings2Icon, TodoIcon,    PomodoroIcon};
+  static constexpr const uint8_t* ICONS[] = {FolderIcon, LibraryIcon,  BlocksIcon, Settings2Icon,
+                                             TodoIcon,   PomodoroIcon, SudokuIcon};
   int count = 0;
-  for (int i = 0; i < 6; ++i) {
+  for (int i = 0; i < 7; ++i) {
     if (i == 2 && slotTab == SlotTab::NONE) continue;
     auto& tab = tabItems[count];
     tab.value = books->size() + count;

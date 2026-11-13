@@ -24,3 +24,13 @@ themes that already show menu icons; label-only themes keep their native layout.
 rsvg-convert -w 32 -h 32 freeink-sdk/libs/assets/Icons/lucide/icons/timer.svg -o ../qa-artifacts/pomodoro-icon-source.png
 ../.venv/bin/python scripts/convert_icon.py ../qa-artifacts/pomodoro-icon-source.png pomodoro 32 32
 ```
+
+## Sudoku
+
+`sudoku.h` uses the same licensed Lucide pipeline with `grid-3x3.svg`:
+
+```sh
+rsvg-convert -w 32 -h 32 freeink-sdk/libs/assets/Icons/lucide/icons/grid-3x3.svg -o ../qa-artifacts/sudoku-icon-source.png
+../.venv/bin/python scripts/convert_icon.py ../qa-artifacts/sudoku-icon-source.png sudoku 32 32
+./bin/clang-format-fix -g
+```

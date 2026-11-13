@@ -23,6 +23,7 @@
 #include "components/icons/pomodoro.h"
 #include "components/icons/recent.h"
 #include "components/icons/settings2.h"
+#include "components/icons/sudoku.h"
 #include "components/icons/todo.h"
 #include "components/icons/transfer.h"
 #include "components/icons/wifi.h"
@@ -46,6 +47,8 @@ const uint8_t* iconForName(UIIcon icon) {
       return BookIcon;
     case UIIcon::Pomodoro:
       return PomodoroIcon;
+    case UIIcon::Sudoku:
+      return SudokuIcon;
     case UIIcon::Todo:
       return TodoIcon;
     case UIIcon::Recent:
