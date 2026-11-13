@@ -22,16 +22,20 @@
 >   [FreeInk SDK](https://github.com/DumbledoreCalrissian/freeink-sdk) (branch
 >   `feat/todo-list-controls`).
 >
-> Sudoku uses presolved `.cpsd` puzzle files copied to `/games/sudoku/` on the SD
-> card. Get the four difficulty packs from
-> [sudoku-bank-v2](https://github.com/DumbledoreCalrissian/crosspoint-reader/releases/tag/sudoku-bank-v2).
-> Local milestone 3 work on `feat/sudoku-downloads` adds Download, Download all
-> and Delete in Sudoku settings, with resumable transfers and pinned SHA256
-> verification. Manual copying remains supported. This work is not yet published.
+> Sudoku settings offers Download, Download all and Delete for the four difficulty
+> packs, showing installation state, puzzle count and download size. Downloads
+> resume interrupted transfers and verify pinned SHA256 hashes before replacing
+> an installed pack. Deleting a pack keeps the game in progress.
+>
+> Manual installation remains supported: copy presolved `.cpsd` files from
+> [sudoku-bank-v2](https://github.com/DumbledoreCalrissian/crosspoint-reader/releases/tag/sudoku-bank-v2)
+> to `/games/sudoku/` on the SD card. See the [Sudoku guide](docs/picco-sudoku.md)
+> for saving, cancellation, replacement recovery and hardware checks.
+>
 > Verified native milestone 3 build: flash 5,522,762 bytes (+8,464 versus
 > `2441f1c5`), static DRAM 112,676 bytes (unchanged). Hardware remains untested.
-> The local simulator branch `feat/sudoku-download-tests` supplies streaming HTTP
-> and real SHA256 for its tests; its host build also needs libcurl headers/library.
+> The simulator's `fix/picco-test-link` branch includes streaming HTTP and real
+> SHA256 for local download tests. Its host build needs libcurl headers/library.
 >
 > To build this branch in the simulator, clone this repository and the forked
 > simulator side by side:
