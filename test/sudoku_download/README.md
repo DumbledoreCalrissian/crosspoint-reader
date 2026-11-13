@@ -7,6 +7,13 @@ sh test/sudoku_download/run.sh
 python -I test/sudoku_download/simulator.py
 ```
 
+Use `python -I test/sudoku_download/simulator.py --exit-sleep` for the targeted
+exit checks: Back/Done returns to settings, Home leaves for Home after Wi-Fi,
+Control Center retains its close-first behavior, transfer-time Home cancels,
+and manual power sleep unwinds the download while preserving the old pack and
+a resumable partial. These checks observe simulator restart targets and sleep
+entry; physical reboot and power behavior still need a Picco.
+
 These tests use only local fixtures, not public release assets. The transfer
 harness compiles production HttpDownloader and SudokuCatalog under ASan/UBSan,
 with an in-memory HalStorage that can reject writes, closes, opens and renames.

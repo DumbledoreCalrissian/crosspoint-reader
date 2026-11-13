@@ -114,7 +114,11 @@ or Done leaves the result and silently restarts into Sudoku settings, with the
 start list underneath so Back still returns to the game list. Cancelling Wi-Fi
 selection also restarts into settings. The normal Home gesture during a transfer
 cancels it; acknowledge the result to return to settings. Manual sleep keeps the
-existing wake/Home policy and does not force a network-exit restart.
+existing wake/Home policy and does not force a network-exit restart. A power
+sleep request cancels the transfer, closes its file and turns Wi-Fi off before
+the main loop sleeps; the partial remains available for resume. Outside the
+transfer, Home leaves for Home, including after network use. In Control Center,
+the first Home gesture closes the panel as usual.
 
 The progress screen has a touch **Cancel** button. Hardware Back also cancels
 on boards that have that key. Only an active transfer prevents auto-sleep;

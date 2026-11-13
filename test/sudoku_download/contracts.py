@@ -128,3 +128,112 @@ with tempfile.TemporaryDirectory() as directory:
                     str(path / 'unsafe.cpp'), '-o', str(path / 'unsafe')], check=True)
     assert subprocess.run([str(path / 'unsafe')], timeout=5).returncode == 1
 print('Production transfer prologue serializes cache release against a concurrent render PASS')
+
+# Exercise the real sleep decision with the real delayed-click classifier.
+sleep_decision = main.split('bool requestManualSleep() {', 1)[1].split('\nvoid loop()', 1)[0]
+settings_header = (ROOT / 'src/CrossPointSettings.h').read_text()
+actions = 'enum SHORT_PWRBTN {' + settings_header.split('enum SHORT_PWRBTN {', 1)[1].split('};', 1)[0] + '};'
+sleep_completion = settings_source.split('  if (requestManualSleep()) {', 1)[1].split(
+    '  mappedInput.resetHomeButtonInput();', 1)[0]
+custom_input = settings_source.split('bool SudokuSettingsActivity::handleCustomInput() {', 1)[1].split(
+    '\nvoid SudokuSettingsActivity::onBackButton()', 1)[0]
+states = re.search(r'enum class State : uint8_t \{[^}]+\};',
+                  (ROOT / 'src/activities/sudoku/SudokuSettingsActivity.h').read_text()).group()
+sleep_harness = r'''
+#include <cassert>
+#include <cstdint>
+#include <string>
+#include "util/PowerButtonInput.h"
+#define LOG_DBG(...) ((void)0)
+unsigned long now = 1000;
+unsigned long millis() { return now; }
+struct GPIO {
+  enum { BTN_POWER, BTN_DOWN };
+  bool power = false, down = false;
+  unsigned long held = 0;
+  bool isPressed(int button) { return button == BTN_POWER ? power : down; }
+  unsigned long getPowerButtonHeldTime() { return held; }
+} gpio;
+using HalGPIO = GPIO;
+namespace BoardConfig { bool x4Pro = false; bool isX4Pro() { return x4Pro; } }
+struct CrossPointSettings {
+  ACTIONS
+  int shortPwrBtn = IGNORE, doublePwrBtn = PWR_FRONTLIGHT;
+  unsigned long getPowerButtonDuration() { return shortPwrBtn == SLEEP ? 10 : 400; }
+} SETTINGS;
+struct Input {
+  PowerButtonInput clicks;
+  bool sleep = false, deferredSleep = false;
+  bool powerSleepClick() { return sleep; }
+  void resetPowerButtonInput() { clicks.reset(); sleep = deferredSleep = false; }
+  void sample(bool released = false) {
+    sleep = false;
+    if (BoardConfig::x4Pro && !gpio.down) {
+      sleep = clicks.update(now, gpio.power, released, gpio.held) == PowerButtonInput::Click::Single;
+    } else clicks.reset();
+    deferredSleep |= sleep;
+  }
+} mappedInputManager;
+unsigned long allowSleepAt = 0;
+bool wakePowerReleasePending = false;
+bool requestManualSleep() { SLEEP_DECISION
+struct RenderLock { template<class T> RenderLock(T&) {} };
+struct Settings {
+  STATES
+  State state = State::Transferring;
+  unsigned transfers = 0;
+  void closeRouting() {}
+  void requestUpdate() {}
+  void transfer() { ++transfers; }
+  void completeTransfer() { if (requestManualSleep()) { SLEEP_COMPLETION }
+  bool handleCustomInput() { CUSTOM_INPUT
+};
+int main(int argc, char** argv) {
+  assert(argc == 2);
+  const bool screenshot = std::string(argv[1]) == "screenshot";
+  const bool wake = std::string(argv[1]) == "wake";
+  if (wake) {
+    gpio.power = true; gpio.held = 2000;
+    assert(!requestManualSleep());
+  }
+  gpio.power = false; gpio.held = 0;
+  assert(!requestManualSleep());
+  if (screenshot) {
+    BoardConfig::x4Pro = true;
+    SETTINGS.shortPwrBtn = CrossPointSettings::SLEEP;
+    gpio.power = gpio.down = true;
+    mappedInputManager.sample(); assert(!requestManualSleep());
+    now += 100; gpio.down = false; gpio.held = 100;
+    mappedInputManager.sample(); assert(!requestManualSleep());
+    now += 50; gpio.power = false; gpio.held = 150;
+    mappedInputManager.sample(true); assert(!requestManualSleep());
+    now += 501;
+    mappedInputManager.sample(); assert(!requestManualSleep());
+    assert(!mappedInputManager.deferredSleep);
+  }
+  gpio.power = true; gpio.held = 500; now += 1000;
+  assert(requestManualSleep());
+  gpio.power = false; mappedInputManager.sample();
+  assert(requestManualSleep());  // Unwinding must retain the request after release.
+  Settings settings;
+  settings.completeTransfer();
+  assert(settings.state == Settings::State::AwaitingSleep);
+  assert(settings.handleCustomInput() && settings.transfers == 0);
+}
+'''
+sleep_harness = (sleep_harness.replace('ACTIONS', actions).replace('SLEEP_DECISION', sleep_decision)
+                 .replace('SLEEP_COMPLETION', sleep_completion).replace('CUSTOM_INPUT', custom_input)
+                 .replace('STATES', states))
+with tempfile.TemporaryDirectory() as directory:
+    path = Path(directory)
+    source = path / 'sleep.cpp'
+    source.write_text(sleep_harness)
+    command = ['c++', '-std=c++20', '-Wall', '-Wextra', '-Werror', '-I' + str(ROOT / 'src'),
+               str(source), '-o', str(path / 'sleep')]
+    subprocess.run(command, check=True)
+    for scenario in ('hold', 'wake', 'screenshot'):
+        subprocess.run([str(path / 'sleep'), scenario], check=True)
+    source.write_text(sleep_harness.replace('    mappedInputManager.resetPowerButtonInput();', ''))
+    subprocess.run(command, check=True)
+    assert subprocess.run([str(path / 'sleep'), 'screenshot'], capture_output=True).returncode != 0
+print('Manual sleep retention, wake/screenshot guards and no transfer reentry PASS (unsafe variant rejected)')

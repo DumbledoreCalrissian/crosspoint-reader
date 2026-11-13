@@ -14,12 +14,13 @@ class SudokuSettingsActivity final : public UiListActivity {
   bool preventAutoSleep() override { return state == State::Transferring; }
 
  private:
-  enum class State : uint8_t { Browsing, SelectingWifi, Ready, Transferring, Result };
+  enum class State : uint8_t { Browsing, SelectingWifi, Ready, Transferring, AwaitingSleep, Result };
   static constexpr int ROW_COUNT = ITEM_COUNT + 1 + 2 * sudoku::DIFFICULTIES;
   static constexpr auto ACTION_CANCEL = ACTION_USER;
   State state = State::Browsing;
   const bool canDownload;
   bool networkUsed = false;
+  bool returnToSettings = false;
   bool cancelRequested = false;
   int requestedDifficulty = -1;
   int currentDifficulty = 0;
@@ -41,6 +42,7 @@ class SudokuSettingsActivity final : public UiListActivity {
   void onBackButton() override;
   void refresh();
   void beginDownload(int difficulty);
+  void finishToSettings();
   void transfer();
   bool pollCancel();
   void confirmDelete(sudoku::Difficulty difficulty);

@@ -56,7 +56,7 @@ def start_settings(theme=1):
     return Steps().wait('Entering activity: Home').add('TAP:428,755') if theme == 4 else ui.enter_sudoku(theme)
 
 
-def run(name, script, server, prepare=None, theme=1, before_settings=None, settings=None):
+def run(name, script, server, prepare=None, theme=1, before_settings=None, settings=None, wait_timeout=18000):
     REQUESTS.clear()
     with tempfile.TemporaryDirectory(prefix=name+'-', dir=ART) as directory:
         sd = Path(directory)
@@ -72,7 +72,7 @@ def run(name, script, server, prepare=None, theme=1, before_settings=None, setti
         full += '0:WAIT:Entering activity: Sudoku;' + (str(before_settings) if before_settings else '')
         full += '350:TAP:440,63;0:WAIT:Entering activity: SudokuSettings;' + str(script)
         env = dict(os.environ, SDL_VIDEODRIVER='dummy', CROSSPOINT_SIM_SD=str(sd), CROSSPOINT_SIM_SCREEN_TEXT='1',
-                   CROSSPOINT_SIM_WAIT_TIMEOUT_MS='100000' if name == 'long-idle' else '18000', CROSSPOINT_SIM_INPUT_SCRIPT=full,
+                   CROSSPOINT_SIM_WAIT_TIMEOUT_MS='100000' if name == 'long-idle' else str(wait_timeout), CROSSPOINT_SIM_INPUT_SCRIPT=full,
                    CROSSPOINT_SIM_SUDOKU_BANK_URL=f'http://127.0.0.1:{server.server_port}/')
         for d, data in enumerate(PACKS.values()):
             env[f'CROSSPOINT_SIM_SUDOKU_PACK_{d}'] = f'{len(data)}:{hashlib.sha256(data).hexdigest()}'
@@ -96,6 +96,62 @@ def select_row(index):
     return s.add('ENTER')
 
 
+def exit_and_sleep(server):
+    global MODE
+    MODE = 'success'
+    home = 'SWIPE:0.5,0.98,0.5,0.5'
+    for child in (False, True):
+        s = select_row(5).wait('SCREEN:.*Download complete.*Installed: 1')
+        if child:
+            s.add('SWIPE:0.5,0.01,0.5,0.45').wait('Entering activity: FrontlightPanel')
+            s.add(home).wait('SCREEN:.*Download complete.*Done')
+        s.add(home).wait(r'Silent restart \(target=home\)').wait('Entering activity: Home').add('QUIT')
+        _, out, _ = run('home-child' if child else 'home-result', s, server)
+        assert 'target=sudoku-settings' not in out
+
+    s = select_row(5).wait('SCREEN:.*Download complete.*Installed: 1')
+    s.add(ui.BACK).wait(r'Silent restart \(target=sudoku-settings\)').add('QUIT')
+    _, out, _ = run('back-result', s, server)
+    assert 'target=home' not in out
+
+    def no_credentials(sd):
+        (sd / '.crosspoint/wifi.json').unlink()
+    for go_home in (False, True):
+        target = 'home' if go_home else 'sudoku-settings'
+        s = select_row(5).wait('Entering activity: WifiSelection').add(home if go_home else ui.BACK)
+        s.wait(r'Silent restart \(target=' + target + r'\)').add('QUIT')
+        _, out, requests = run('home-wifi' if go_home else 'back-wifi', s, server, prepare=no_credentials)
+        assert not requests
+        assert ('target=sudoku-settings' if go_home else 'target=home') not in out
+
+    MODE = 'slow'
+    def installed(sd):
+        (sd / 'games/sudoku/easy.cpsd').write_bytes(PACKS['easy.cpsd'])
+    # Home during the transfer is Cancel; acknowledging its result still returns to settings.
+    s = select_row(5).wait('SCREEN:.*Downloading.*Easy').add(home)
+    s.wait('SCREEN:.*Cancelled.*Installed: 0').add('ENTER').wait(r'Silent restart \(target=sudoku-settings\)').add('QUIT')
+    files, _, _ = run('home-transfer', s, server, prepare=installed)
+    assert files['games/sudoku/easy.cpsd'] == PACKS['easy.cpsd']
+    assert 0 < len(files['games/sudoku/easy.part']) < len(PACKS['easy.cpsd'])
+
+    for short_sleep in (False, True):
+        s = select_row(5).wait('SCREEN:.*Downloading.*Easy').add('POWER:80' if short_sleep else 'POWER:900')
+        s.wait('Entering activity: Sleep').add('QUIT')
+        files, out, _ = run('sleep-short' if short_sleep else 'sleep-hold', s, server, prepare=installed,
+                            settings={'shortPwrBtn': 1 if short_sleep else 0}, wait_timeout=4000)
+        assert 'Silent restart' not in out and 'Download result:' not in out
+        assert files['games/sudoku/easy.cpsd'] == PACKS['easy.cpsd']
+        assert 0 < len(files['games/sudoku/easy.part']) < len(PACKS['easy.cpsd'])
+
+    # Releasing Down first must not turn a screenshot chord's remaining power hold into sleep.
+    s = select_row(5).wait('SCREEN:.*Downloading.*Easy').add('DOWN:600').add('POWER:900')
+    s.wait('SCREEN:.*Download complete.*Installed: 1').add('QUIT')
+    files, out, _ = run('screenshot-chord', s, server, prepare=installed, settings={'shortPwrBtn': 0})
+    assert 'Entering activity: Sleep' not in out
+    assert files['games/sudoku/easy.cpsd'] == PACKS['easy.cpsd']
+    MODE = 'success'
+
+
 def main():
     global MODE
     ART.mkdir(parents=True, exist_ok=True)
@@ -103,6 +159,10 @@ def main():
     server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
+        import sys
+        if '--exit-sleep' in sys.argv:
+            exit_and_sleep(server)
+            return
         s = select_row(4).wait('Download result:').wait('SCREEN:.*Download complete.*Installed: 4')
         s.add(f'SHOT:{ART}/download-all.bmp').add('ENTER').wait('Silent restart.*target=sudoku-settings').add('QUIT')
         files, out, requests = run('all', s, server)
@@ -172,6 +232,7 @@ def main():
         files, out, _ = run('long-idle', s, server, settings={'sleepTimeoutMinutes': 1})
         assert 'Entering activity: Sleep' not in out and 'Auto-sleep triggered' not in out
         assert files['games/sudoku/easy.cpsd'] == PACKS['easy.cpsd']
+        exit_and_sleep(server)
     finally:
         server.shutdown(); server.server_close()
 

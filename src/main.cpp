@@ -34,6 +34,7 @@
 #include "CrossPointState.h"
 #include "KOReaderCredentialStore.h"
 #include "LcpPassphraseStore.h"
+#include "ManualSleep.h"
 #include "MappedInputManager.h"
 #include "OpdsServerStore.h"
 #include "OpdsTokenStore.h"
@@ -842,6 +843,43 @@ void setup() {
   allowSleepAt = millis() + 2000;
 }
 
+bool requestManualSleep() {
+  static bool pending = false;
+  static bool powerReleasedSinceWake = false;
+  static bool screenshotPowerHeld = false;
+  if (!gpio.isPressed(HalGPIO::BTN_POWER)) powerReleasedSinceWake = true;
+  if (pending) return true;
+  if (gpio.isPressed(HalGPIO::BTN_POWER) && gpio.isPressed(HalGPIO::BTN_DOWN)) screenshotPowerHeld = true;
+  // A transfer can observe the screenshot chord without running the main-loop
+  // screenshot handler. Its remaining power hold must not become sleep.
+  if (screenshotPowerHeld) {
+    mappedInputManager.resetPowerButtonInput();
+    if (!gpio.isPressed(HalGPIO::BTN_POWER)) screenshotPowerHeld = false;
+    return false;
+  }
+  if (wakePowerReleasePending || gpio.isPressed(HalGPIO::BTN_DOWN)) return false;
+
+  if (mappedInputManager.powerSleepClick()) pending = true;
+  const bool x4ProDoubleClickEnabled = BoardConfig::isX4Pro() && SETTINGS.doublePwrBtn != CrossPointSettings::IGNORE;
+  const bool x4ProAwaitingClickWindow = x4ProDoubleClickEnabled &&
+                                        SETTINGS.shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::SLEEP &&
+                                        gpio.getPowerButtonHeldTime() <= PowerButtonInput::MAX_CLICK_HOLD_MS;
+  if (!x4ProAwaitingClickWindow && powerReleasedSinceWake && millis() >= allowSleepAt &&
+      gpio.isPressed(HalGPIO::BTN_POWER) && gpio.getPowerButtonHeldTime() > SETTINGS.getPowerButtonDuration()) {
+    LOG_DBG("MAIN", "Power button held %lums, sleeping", gpio.getPowerButtonHeldTime());
+    pending = true;
+  }
+#if FREEINK_DEVICE_PAPERMONO
+  // Paper Mono's PMIC reports a one-tick click rather than a held button.
+  if ((SETTINGS.shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::SLEEP ||
+       SETTINGS.shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::IGNORE) &&
+      millis() >= allowSleepAt && mappedInputManager.wasReleased(MappedInputManager::Button::Power)) {
+    pending = true;
+  }
+#endif
+  return pending;
+}
+
 void loop() {
   static unsigned long maxLoopDuration = 0;
   const unsigned long loopStartTime = millis();
@@ -972,11 +1010,10 @@ void loop() {
     screenshotComboActive = false;
   }
 
-  if (mappedInputManager.powerSleepClick()) {
+  if (requestManualSleep()) {
     enterDeepSleep();
     return;
   }
-  const bool x4ProDoubleClickEnabled = BoardConfig::isX4Pro() && SETTINGS.doublePwrBtn != CrossPointSettings::IGNORE;
 
   const unsigned long sleepTimeoutMs = SETTINGS.getSleepTimeoutMs();
   if (sleepTimeoutMs > 0 && millis() - lastActivityTime >= sleepTimeoutMs) {
@@ -985,43 +1022,6 @@ void loop() {
     // This should never be hit as `enterDeepSleep` calls esp_deep_sleep_start
     return;
   }
-
-  // A hold that woke the device must be released before it can count as a new
-  // in-app long press. Otherwise a user who keeps holding after wake would put
-  // the device straight back to sleep once allowSleepAt expires.
-  static bool powerReleasedSinceWake = false;
-  if (!gpio.isPressed(HalGPIO::BTN_POWER)) powerReleasedSinceWake = true;
-
-  // On X4 Pro with SLEEP, a press still within the click window is a
-  // double-click candidate — let it be released and evaluated above instead
-  // of sleeping on button-down.
-  const bool x4ProAwaitingClickWindow = x4ProDoubleClickEnabled &&
-                                        SETTINGS.shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::SLEEP &&
-                                        gpio.getPowerButtonHeldTime() <= PowerButtonInput::MAX_CLICK_HOLD_MS;
-
-  if (!x4ProAwaitingClickWindow && powerReleasedSinceWake && millis() >= allowSleepAt &&
-      gpio.isPressed(HalGPIO::BTN_POWER) && gpio.getPowerButtonHeldTime() > SETTINGS.getPowerButtonDuration()) {
-    // If the screenshot combination is potentially being pressed, don't sleep
-    if (gpio.isPressed(HalGPIO::BTN_DOWN)) {
-      return;
-    }
-    LOG_DBG("MAIN", "Power button held %lums, sleeping", gpio.getPowerButtonHeldTime());
-    enterDeepSleep();
-    // This should never be hit as `enterDeepSleep` calls esp_deep_sleep_start
-    return;
-  }
-
-#if FREEINK_DEVICE_PAPERMONO
-  // Paper Mono reports the PMIC power button as a one-tick click, so the held
-  // path above cannot fire. With the default Ignore action, retain the normal
-  // power-button meaning and shut down; explicit alternate bindings still win.
-  if ((SETTINGS.shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::SLEEP ||
-       SETTINGS.shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::IGNORE) &&
-      millis() >= allowSleepAt && mappedInputManager.wasReleased(MappedInputManager::Button::Power)) {
-    enterDeepSleep();
-    return;
-  }
-#endif
 
   // Refresh screen when power button is short-pressed with FORCE_REFRESH setting.
   if (mappedInputManager.homeButtonAction() == HomeButtonAction::ToggleFrontlight) {

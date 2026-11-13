@@ -11,6 +11,7 @@
 #include <cstdlib>
 
 #include "CrossPointSettings.h"
+#include "ManualSleep.h"
 #include "SilentRestart.h"
 #include "SudokuActivity.h"
 #include "activities/network/WifiSelectionActivity.h"
@@ -46,8 +47,16 @@ void SudokuSettingsActivity::onExit() {
   if (networkUsed) {
     WiFi.disconnect(true);
     WiFi.mode(WIFI_OFF);
-    silentRestartToSudokuSettings();
+    if (returnToSettings)
+      silentRestartToSudokuSettings();
+    else
+      silentRestart();
   }
+}
+
+void SudokuSettingsActivity::finishToSettings() {
+  returnToSettings = true;
+  finish();
 }
 
 const char* SudokuSettingsActivity::headerTitle() const { return tr(STR_SUDOKU_SETTINGS); }
@@ -88,7 +97,7 @@ void SudokuSettingsActivity::refresh() {
 void SudokuSettingsActivity::activateIndex(int index) {
   app.clearTapFlash();
   if (state == State::Result) {
-    finish();
+    finishToSettings();
     return;
   }
   if (state != State::Browsing || index < 0 || index >= ROW_COUNT) return;
@@ -151,7 +160,7 @@ void SudokuSettingsActivity::beginDownload(int difficulty) {
   WiFi.mode(WIFI_STA);
   startActivityForResult(std::move(wifi), [this](const ActivityResult& result) {
     if (result.isCancelled) {
-      finish();
+      finishToSettings();
       return;
     }
     RenderLock lock(*this);
@@ -169,6 +178,7 @@ bool SudokuSettingsActivity::pollCancel() {
   simBeginTransferFrame();
 #endif
   mappedInput.update(true);
+  if (requestManualSleep()) return true;
   if (mappedInput.wasReleased(MappedInputManager::Button::Back) || mappedInput.wasHomeGesture()) cancelRequested = true;
   routeTouch(mappedInput);
   return cancelRequested;
@@ -255,6 +265,12 @@ void SudokuSettingsActivity::transfer() {
   }
   WiFi.disconnect(true);
   WiFi.mode(WIFI_OFF);
+  if (requestManualSleep()) {
+    RenderLock lock(*this);
+    state = State::AwaitingSleep;
+    closeRouting();
+    return;
+  }
   mappedInput.resetHomeButtonInput();
   {
     RenderLock lock(*this);
@@ -278,13 +294,13 @@ bool SudokuSettingsActivity::handleCustomInput() {
     transfer();
     return true;
   }
-  return state == State::SelectingWifi;
+  return state == State::SelectingWifi || state == State::AwaitingSleep;
 }
 void SudokuSettingsActivity::onBackButton() {
   if (state == State::Transferring)
     cancelRequested = true;
   else
-    finish();
+    finishToSettings();
 }
 
 void SudokuSettingsActivity::buildScreen(UiScreen& screen) {
