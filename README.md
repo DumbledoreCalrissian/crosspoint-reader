@@ -1,5 +1,35 @@
 # CrossPoint Reader
 
+> [!WARNING]
+> **Unofficial downstream fork for the BOOX Picco.** This is not the official
+> CrossPoint Reader and is not affiliated with or supported by the CrossPoint
+> project. The official project is
+> [crosspoint-reader/crosspoint-reader](https://github.com/crosspoint-reader/crosspoint-reader).
+>
+> **Only tested in the desktop simulator.** This firmware has never been flashed
+> onto a physical Picco. Touch, display refresh, memory use, SD card durability,
+> sleep and power behaviour are unverified on real hardware. Use it at your own
+> risk.
+>
+> Changes in this fork (branch `picco`):
+> - an offline [Todo list](docs/picco-todo.md);
+> - a foreground [Pomodoro timer](docs/picco-pomodoro.md);
+> - File Transfer moved from Home to the Browse Files header;
+> - the `My Clippings.txt` export hidden from Library and Home;
+> - small UI extensions in a forked
+>   [FreeInk SDK](https://github.com/DumbledoreCalrissian/freeink-sdk) (branch
+>   `feat/todo-list-controls`).
+>
+> To build the simulator, clone this repository and the forked simulator side by
+> side:
+>
+> ```sh
+> git clone --recurse-submodules -b picco https://github.com/DumbledoreCalrissian/crosspoint-reader.git
+> git clone -b fix/picco-test-link https://github.com/DumbledoreCalrissian/crosspoint-simulator.git
+> ```
+>
+> The rest of this README is upstream's and describes the official project.
+
 [![Fund contributors](https://img.shields.io/badge/%F0%9F%91%91_Fund_contributors-royalty.dev-BB953A?style=for-the-badge&labelColor=1a1a1a)](https://app.royalty.dev/crosspoint-reader/crosspoint-reader)
 
 CrossPoint is open-source e-reader firmware - community-built, fully hackable, free forever. It's maintained by a growing community of developers and readers who believe your device should do what you want - not what a manufacturer decided for you.
