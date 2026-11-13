@@ -11,7 +11,7 @@
 > sleep and power behaviour are unverified on real hardware. Use it at your own
 > risk.
 >
-> Changes on this branch (`feat/sudoku-game`, based on `picco`):
+> Changes in this fork (branch `picco`):
 > - an offline [Todo list](docs/picco-todo.md);
 > - a foreground [Pomodoro timer](docs/picco-pomodoro.md);
 > - an offline [Sudoku game](docs/picco-sudoku.md) with notes, undo, Check, Reveal
@@ -31,7 +31,7 @@
 > simulator side by side:
 >
 > ```sh
-> git clone --recurse-submodules -b feat/sudoku-game https://github.com/DumbledoreCalrissian/crosspoint-reader.git
+> git clone --recurse-submodules -b picco https://github.com/DumbledoreCalrissian/crosspoint-reader.git
 > git clone -b fix/picco-test-link https://github.com/DumbledoreCalrissian/crosspoint-simulator.git
 > ```
 >

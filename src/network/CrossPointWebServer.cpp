@@ -71,6 +71,33 @@ static void sendStaticContent(WebServer* server, const char* data, size_t len, c
                               const char* contentType);
 
 namespace {
+const char* controlsGroupLabel(const char* key) {
+  if (!key) return nullptr;
+  static constexpr struct {
+    const char* key;
+    StrId label;
+  } GROUPS[] = {
+      {"homeButtonTapAction", StrId::STR_HOME_BUTTON},
+      {"homeButtonDoubleTapAction", StrId::STR_HOME_BUTTON},
+      {"homeButtonLongPressAction", StrId::STR_HOME_BUTTON},
+      {"shortPwrBtn", StrId::STR_POWER_BUTTON},
+      {"doublePwrBtn", StrId::STR_POWER_BUTTON},
+      {"pwrBtnFootnoteBack", StrId::STR_POWER_BUTTON},
+      {"frontButtonFollowOrientation", StrId::STR_FRONT_BUTTONS},
+      {"backShortToFileBrowser", StrId::STR_FRONT_BUTTONS},
+      {"sideButtonLayout", StrId::STR_SIDE_BUTTONS},
+      {"sideButtonFollowOrientation", StrId::STR_SIDE_BUTTONS},
+      {"touchReaderControls", StrId::STR_TAPS_AND_GESTURES},
+      {"pageTurnGesture", StrId::STR_TAPS_AND_GESTURES},
+      {"previousPageGesture", StrId::STR_TAPS_AND_GESTURES},
+      {"tapForReaderMenu", StrId::STR_TAPS_AND_GESTURES},
+  };
+  for (const auto& group : GROUPS) {
+    if (std::strcmp(key, group.key) == 0) return I18N.get(group.label);
+  }
+  return nullptr;
+}
+
 // Arduino's WebServer retains parsed request arguments until the next request.
 // For JSON POSTs, that includes the complete "plain" body. Expose a narrowly
 // scoped release operation so large request bodies do not remain resident
@@ -1592,8 +1619,12 @@ void CrossPointWebServer::handleGetSettings() const {
 
     doc.clear();
     doc["key"] = s.key;
-    doc["name"] = I18N.get(s.nameId);
+    const bool pageTurnLongPress = s.key && std::strcmp(s.key, "longPressButtonBehavior") == 0;
+    doc["name"] = I18N.get(pageTurnLongPress ? StrId::STR_PAGE_TURN_LONG_PRESS : s.nameId);
     doc["category"] = I18N.get(s.category);
+    if (s.category == StrId::STR_CAT_CONTROLS) {
+      if (const char* group = controlsGroupLabel(s.key)) doc["controlGroup"] = group;
+    }
 
     switch (s.type) {
       case SettingType::TOGGLE: {

@@ -275,6 +275,11 @@ Types:
 
 The font-family setting includes SD-card font families when they are installed.
 
+Control settings may include a translated `controlGroup` label for the web UI's
+Home, Power, Front, Side or Touch group. Shared controls can appear in more than
+one group while keeping one setting key and stored value. Setting names and group
+labels use the selected device language, with English fallback.
+
 ### `POST /api/settings`
 
 Applies a partial settings update from a JSON object.
