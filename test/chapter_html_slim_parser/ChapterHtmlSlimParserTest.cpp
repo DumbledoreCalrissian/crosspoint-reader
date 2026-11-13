@@ -4,6 +4,7 @@
 #include <GfxRenderer.h>
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
 #include <cstring>
 #include <filesystem>
@@ -210,7 +211,10 @@ TEST_F(ChapterHtmlSlimParserTest, AbandonedLayoutStopsExtractingLines) {
 class ParserStopTest : public ChapterHtmlSlimParserTest {};
 
 TEST_P(ParserStopTest, PageCallbackStopsParsingAndClosesFile) {
-  filepath = (std::filesystem::temp_directory_path() / "crosspoint-parser-stop.xhtml").string();
+  // CTest runs each parameter in its own process concurrently; give each case its own file.
+  std::string caseName = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+  std::replace(caseName.begin(), caseName.end(), '/', '-');
+  filepath = (std::filesystem::temp_directory_path() / ("crosspoint-parser-stop-" + caseName + ".xhtml")).string();
   std::string html = "<html><body>";
   for (int i = 0; i < 100; ++i) html += GetParam();
   html += "</body></html>";
