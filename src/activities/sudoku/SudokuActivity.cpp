@@ -5,6 +5,7 @@
 #include <Logging.h>
 #include <Memory.h>
 
+#include <algorithm>
 #include <cstdio>
 
 #include "CrossPointSettings.h"
@@ -57,12 +58,11 @@ void SudokuActivity::refresh() {
     const int d = static_cast<int>(row.difficulty);
     if (row.isContinue) {
       const unsigned percent = static_cast<unsigned>(store.game().filledCount() * 100 / sudoku::CELLS);
-      std::snprintf(values[i], sizeof(values[i]), tr(STR_SUDOKU_PROGRESS), difficultyLabel(row.difficulty), percent);
+      std::snprintf(labels[i], sizeof(labels[i]), tr(STR_SUDOKU_PROGRESS), difficultyLabel(row.difficulty), percent);
     } else if (packStatus[d] == PackStatus::Valid) {
-      std::snprintf(values[i], sizeof(values[i]), tr(STR_SUDOKU_PUZZLES),
-                    static_cast<unsigned long>(packInfo[d].count));
+      std::snprintf(labels[i], sizeof(labels[i]), "%s", difficultyLabel(row.difficulty));
     } else {
-      std::snprintf(values[i], sizeof(values[i]), "%s",
+      std::snprintf(labels[i], sizeof(labels[i]), tr(STR_SUDOKU_DIFFICULTY_STATUS), difficultyLabel(row.difficulty),
                     packStatus[d] == PackStatus::Missing ? tr(STR_SUDOKU_NOT_INSTALLED) : tr(STR_SUDOKU_DAMAGED));
     }
   }
@@ -105,6 +105,11 @@ void SudokuActivity::action(const fui::ActionEvent& event, void* context) {
 }
 
 void SudokuActivity::onBackButton() { activityManager.goHome(HomeMenuItem::SUDOKU); }
+
+bool SudokuActivity::handleCustomInput() {
+  const auto swipe = mappedInput.wasSwipe();
+  return swipe == MappedInputManager::SwipeDir::Up || swipe == MappedInputManager::SwipeDir::Down;
+}
 
 void SudokuActivity::activateIndex(const int index) {
   if (index < 0 || index >= rowCount) return;
@@ -186,16 +191,6 @@ void SudokuActivity::openSettings() {
   startActivityForResult(std::move(settings), [this](const ActivityResult&) { refresh(); });
 }
 
-void SudokuActivity::provideRow(void* context, const uint16_t index, fui::ListItem& item) {
-  const auto& self = *static_cast<SudokuActivity*>(context);
-  if (index >= self.rowCount) return;
-  const Row& row = self.rows[index];
-  item.actionValue = static_cast<int16_t>(index);
-  item.label = row.isContinue ? tr(STR_SUDOKU_CONTINUE) : difficultyLabel(row.difficulty);
-  item.value = self.values[index];
-  item.enabled = row.isContinue || self.packStatus[static_cast<int>(row.difficulty)] == PackStatus::Valid;
-}
-
 void SudokuActivity::buildHeader(UiScreen& screen) {
   fui::HeaderProps header;
   const auto band = prepareUiHeader(screen, renderer, header, tr(STR_SUDOKU), ACTION_BACK);
@@ -224,13 +219,86 @@ void SudokuActivity::buildScreen(UiScreen& screen) {
     fui::textArea(screen.frame(), band.inset(fui::Insets{0, inset, 0, inset}), text);
   }
 
-  fui::ListProps props;
-  props.count = static_cast<uint16_t>(rowCount);
-  props.rowProvider = provideRow;
-  props.rowProviderCtx = this;
-  props.action = ACTION_ROW;
-  props.inputMask = fui::InputTouch;
-  props.valueInset = 8;
-  syncListViewport(screen, props);
-  screen.list(props);
+  // Difficulty buttons: outlined, with the theme's list highlight when focused.
+  fui::StyleSet difficultyStyles = themedSelectionStyles(theme);
+  const auto stroke = static_cast<uint8_t>(std::max(2, metrics.popupFrameThickness));
+  for (fui::BoxStyle* box :
+       {&difficultyStyles.normal, &difficultyStyles.selected, &difficultyStyles.focused, &difficultyStyles.active}) {
+    box->border = fui::Paint::solid(fui::Color::Black);
+    box->borderWidth = stroke;
+  }
+  // Unavailable packs: readable status text inside a thin, light outline.
+  // Rounded corners draw the dithered border solid, so the width carries the cue.
+  difficultyStyles.disabled.foreground = fui::Paint::solid(fui::Color::Black);
+  difficultyStyles.disabled.border = fui::Paint::dither(fui::Color::LightGray);
+  difficultyStyles.disabled.borderWidth = 1;
+
+  // No viewport: with fixed UI fonts and portrait-only app pages, the tallest
+  // case (notice + Continue + four difficulties) fits. Revisit if either changes.
+  const auto side = static_cast<int16_t>(theme.listInset + theme.listSidePadding);
+  screen.insetContent(fui::Insets{0, side, 0, side});
+  int index = 0;
+  if (index < rowCount && rows[index].isContinue) buildContinue(screen, index++);
+
+  auto heading = theme.smallText;
+  heading.bold = true;
+  const auto headingHeight = static_cast<int16_t>(uiTarget.lineHeight(heading.font));
+  const fui::Rect headingRow = screen.takeTop(static_cast<int16_t>(headingHeight + 3), theme.spaceSm);
+  uiTarget.text(fui::Rect{headingRow.x, headingRow.y, headingRow.width, headingHeight}, tr(STR_SUDOKU_NEW_GAME),
+                heading);
+  uiTarget.fill(fui::Rect{headingRow.x, static_cast<int16_t>(headingRow.y + headingHeight + 2), headingRow.width, 1},
+                fui::Paint::solid(fui::Color::Black));
+  for (; index < rowCount; ++index) buildDifficulty(screen, index, difficultyStyles);
+}
+
+void SudokuActivity::buildContinue(UiScreen& screen, const int index) {
+  const auto& theme = screen.theme();
+  // Always filled with the theme's highlight; focus adds a ring around it.
+  fui::StyleSet styles = themedSelectionStyles(theme);
+  styles.normal = styles.selected;
+  const auto progressLine = static_cast<int16_t>(uiTarget.lineHeight(theme.smallText.font));
+  const auto height = static_cast<int16_t>(std::max(theme.rowHeight, theme.listTouchMinRowHeight) + progressLine);
+  const fui::Rect band = screen.takeTop(static_cast<int16_t>(height + theme.spaceLg * 2), theme.spaceMd);
+  const auto inset = static_cast<int16_t>(band.width / 8);
+  const fui::Rect rect = band.inset(fui::Insets{theme.spaceLg, inset, theme.spaceLg, inset});
+  const bool focused = nav.selected == index;
+
+  fui::ButtonProps button;
+  button.label = tr(STR_SUDOKU_CONTINUE);
+  button.action = ACTION_ROW;
+  button.value = static_cast<int16_t>(index);
+  button.inputMask = fui::InputTouch;
+  button.styles = styles;
+  button.state = focused ? fui::StateSelected : fui::StateNormal;
+  button.text = theme.bodyText;
+  button.text.bold = true;
+  button.padding = fui::Insets{2, 4, static_cast<int16_t>(progressLine + 2), 4};
+  screen.button(button, rect);
+
+  auto progress = fui::textStyleWithForeground(theme.smallText, styles.selected.foreground);
+  progress.align = fui::TextAlign::Center;
+  uiTarget.text(fui::Rect{rect.x, static_cast<int16_t>(rect.bottom() - progressLine - 6), rect.width, progressLine},
+                labels[index], progress);
+  if (focused) {
+    const auto gap = static_cast<int16_t>(theme.spaceSm + 2);
+    const fui::Rect ring = rect.inset(fui::Insets{static_cast<int16_t>(-gap), static_cast<int16_t>(-gap),
+                                                  static_cast<int16_t>(-gap), static_cast<int16_t>(-gap)});
+    const auto radius = static_cast<uint8_t>(theme.listRowRadius > 0 ? theme.listRowRadius + gap : 0);
+    uiTarget.stroke(ring, fui::Paint::solid(fui::Color::Black), 3, radius);
+  }
+}
+
+void SudokuActivity::buildDifficulty(UiScreen& screen, const int index, const fui::StyleSet& styles) {
+  const auto& theme = screen.theme();
+  const Row& row = rows[index];
+  fui::ButtonProps button;
+  button.label = labels[index];
+  button.action = ACTION_ROW;
+  button.value = static_cast<int16_t>(index);
+  button.inputMask = fui::InputTouch;
+  button.styles = styles;
+  button.enabled = packStatus[static_cast<int>(row.difficulty)] == PackStatus::Valid;
+  button.state = nav.selected == index ? fui::StateSelected : fui::StateNormal;
+  button.text = theme.bodyText;
+  screen.button(button, screen.takeTop(std::max(theme.rowHeight, theme.listTouchMinRowHeight), theme.spaceMd));
 }

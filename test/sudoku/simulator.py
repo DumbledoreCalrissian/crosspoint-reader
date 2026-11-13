@@ -36,7 +36,10 @@ SOLUTION_A = bank.count_solutions(PUZZLE_A)[1]
 GIVENS_A = 81 - PUZZLE_A.count('0')
 
 # Lyra geometry (portrait 480 x 800), measured from captures.
-ROW = [138, 200, 262, 324]          # start list and settings rows
+ROW = [138, 200, 262, 324]          # settings rows
+# Start page buttons: Continue, the first New game button without a saved game,
+# and Medium below a saved game.
+CONTINUE, FIRST_NEW, MEDIUM_WITH_GAME = 158, 174, 378
 GEAR = '440,63'
 BACK = 'TAP:30,63'  # header back arrow; the Picco profile has no Back key in the simulator
 DIGIT = {1: (61, 612), 2: (149, 612), 3: (238, 612), 4: (327, 612), 5: (416, 612),
@@ -185,7 +188,7 @@ def screens(output):
 
 
 def no_puzzles():
-    s = Steps().wait('SCREEN:.*Copy puzzle files.*Not installed').add(shot('no-puzzles')).add(f'TAP:240,{ROW[0]}')
+    s = Steps().wait('SCREEN:.*Copy puzzle files.*Not installed').add(shot('no-puzzles')).add(f'TAP:240,{FIRST_NEW}')
     s.add('QUIT')
     output, save, _ = run('no-puzzles', str(s), packs=False)
     assert 'Entering activity: SudokuBoard' not in output and save is None
@@ -194,7 +197,7 @@ def no_puzzles():
 
 def play_and_resume():
     a, b = 0, 2  # empty cells in PUZZLE_A
-    s = Steps().wait('SCREEN:.*Easy.*Puzzles: 2').add(f'TAP:240,{ROW[0]}').wait('Entering activity: SudokuBoard')
+    s = Steps().wait('SCREEN:.*New game.*Easy.*Medium').add(f'TAP:240,{FIRST_NEW}').wait('Entering activity: SudokuBoard')
     s.add(f'TAP:{cell_xy(a)}').add(f'TAP:{tap(DIGIT[1])}')
     s.add(f'TAP:{cell_xy(b)}').add(f'TAP:{tap(TOOLS["notes"])}').add(f'TAP:{tap(DIGIT[2])}').add(f'TAP:{tap(DIGIT[4])}')
     s.add(shot('board-entry-notes'))
@@ -203,6 +206,7 @@ def play_and_resume():
     output, save, files = run('play', str(s))
     assert save and save['active'] and save['values'][a] == 1 and save['notes'][b] == (1 << 1) | (1 << 3), save
     assert save['next'][0] == 1 and save['index'] == 0 and save['hints'] == 0
+    assert not any('Puzzles:' in line for line in screens(output)), 'start page shows no puzzle counts'
     print('Enter digit, notes saved on exit, keys inert, Continue progress PASS', flush=True)
 
     # Second process on a card with that save: Continue, undo the notes, leave.
@@ -212,7 +216,7 @@ def play_and_resume():
         for n, data in saved.items():
             (target / '.crosspoint' / n).write_bytes(data)
 
-    s = Steps().wait('SCREEN:.*Continue').add(f'TAP:240,{ROW[0]}').wait('Entering activity: SudokuBoard')
+    s = Steps().wait('SCREEN:.*Continue').add(f'TAP:240,{CONTINUE}').wait('Entering activity: SudokuBoard')
     s.add(f'TAP:{tap(TOOLS["undo"])}').add(f'TAP:{tap(TOOLS["undo"])}').add(BACK).wait('SCREEN:.*Continue')
     s.add('QUIT')
     _, save, _ = run('resume', str(s), prepare=restore)
@@ -222,7 +226,7 @@ def play_and_resume():
 
 def check_reveal_conflict():
     a = 0
-    s = Steps().wait('SCREEN:.*Easy').add(f'TAP:240,{ROW[0]}').wait('Entering activity: SudokuBoard')
+    s = Steps().wait('SCREEN:.*Easy').add(f'TAP:240,{FIRST_NEW}').wait('Entering activity: SudokuBoard')
     s.add(f'TAP:{cell_xy(a)}').add(f'TAP:{tap(DIGIT[5])}')  # 5 repeats the given in row 0
     s.add(shot('board-conflict')).add(f'TAP:{tap(TOOLS["check"])}').add(shot('board-check'))
     s.add(f'TAP:{tap(TOOLS["reveal"])}').add(shot('board-reveal')).add(BACK).wait('SCREEN:.*Continue')
@@ -233,12 +237,12 @@ def check_reveal_conflict():
 
 
 def solve_with_reveal():
-    s = Steps(400).wait('SCREEN:.*Easy').add(f'TAP:240,{ROW[0]}').wait('Entering activity: SudokuBoard')
+    s = Steps(400).wait('SCREEN:.*Easy').add(f'TAP:240,{FIRST_NEW}').wait('Entering activity: SudokuBoard')
     for cell in range(81):
         if PUZZLE_A[cell] == '0':
             s.add(f'TAP:{cell_xy(cell)}').add(f'TAP:{tap(TOOLS["reveal"])}')
     s.wait(f'SCREEN:.*Solved.*Hints used: {81 - GIVENS_A}').add(shot('board-solved')).add('TAP:240,748')
-    s.wait('SCREEN:.*Sudoku \\| Easy').add('QUIT')
+    s.wait('SCREEN:.*Sudoku \\| New game \\| Easy').add('QUIT')
     output, save, _ = run('solve', str(s))
     assert save and not save['active'] and save['next'][0] == 1, save
     assert 'Continue' not in screens(output)[-1]
@@ -246,10 +250,10 @@ def solve_with_reveal():
 
 
 def replace_confirmation():
-    s = Steps().wait('SCREEN:.*Easy').add(f'TAP:240,{ROW[0]}').wait('Entering activity: SudokuBoard')
+    s = Steps().wait('SCREEN:.*Easy').add(f'TAP:240,{FIRST_NEW}').wait('Entering activity: SudokuBoard')
     s.add(f'TAP:{cell_xy(0)}').add(f'TAP:{tap(DIGIT[1])}').add(BACK).wait('SCREEN:.*Continue')
-    s.add(f'TAP:240,{ROW[2]}').wait('SCREEN:.*Start a new puzzle').add(shot('replace-confirm')).add('ENTER')
-    s.wait('SCREEN:.*Continue').add(f'TAP:240,{ROW[2]}').wait('SCREEN:.*Start a new puzzle')
+    s.add(f'TAP:240,{MEDIUM_WITH_GAME}').wait('SCREEN:.*Start a new puzzle').add(shot('replace-confirm')).add('ENTER')
+    s.wait('SCREEN:.*Continue').add(f'TAP:240,{MEDIUM_WITH_GAME}').wait('SCREEN:.*Start a new puzzle')
     s.add('DOWN').add('ENTER').wait('Entering activity: SudokuBoard').wait('SCREEN:.*Medium 2.0').add('QUIT')
     _, save, _ = run('replace', str(s))
     assert save['active'] and save['difficulty'] == 1 and save['next'] == (1, 0, 0, 0), save
@@ -259,8 +263,8 @@ def replace_confirmation():
 def settings_toggles():
     s = Steps().wait('SCREEN:.*Easy').add(f'TAP:{GEAR}').wait('Entering activity: SudokuSettings')
     s.add(shot('settings')).add(f'TAP:240,{ROW[0]}').add(f'TAP:240,{ROW[2]}').add(f'TAP:240,{ROW[3]}')
-    s.add(BACK).wait('SCREEN:.*Sudoku \\| Medium').add(shot('list-without-easy'))
-    s.add(f'TAP:240,{ROW[0]}').wait('Entering activity: SudokuBoard').add(shot('board-without-help')).add('QUIT')
+    s.add(BACK).wait('SCREEN:.*Sudoku \\| New game \\| Medium').add(shot('list-without-easy'))
+    s.add(f'TAP:240,{FIRST_NEW}').wait('Entering activity: SudokuBoard').add(shot('board-without-help')).add('QUIT')
     output, save, files = run('settings', str(s))
     stored = json.loads(files['settings.json'])
     assert stored['sudokuShowEasy'] == 0 and stored['sudokuCheckButton'] == 0 and stored['sudokuRevealButton'] == 0
@@ -273,7 +277,7 @@ def settings_toggles():
 
 def sleep_and_home_save_notes():
     for name in ('sleep', 'home-gesture'):
-        s = Steps().wait('SCREEN:.*Easy').add(f'TAP:240,{ROW[0]}').wait('Entering activity: SudokuBoard')
+        s = Steps().wait('SCREEN:.*Easy').add(f'TAP:240,{FIRST_NEW}').wait('Entering activity: SudokuBoard')
         s.add(f'TAP:{cell_xy(2)}').add(f'TAP:{tap(TOOLS["notes"])}').add(f'TAP:{tap(DIGIT[7])}')
         if name == 'sleep':
             s.add('SLEEP').wait('Entering activity: Sleep').add('POWER')
@@ -299,7 +303,7 @@ def failed_save_continue():
     def read_only(sd):
         (sd / '.crosspoint').chmod(0o555)
 
-    s = Steps().wait('SCREEN:.*Easy').add(f'TAP:240,{ROW[0]}').wait('Entering activity: SudokuBoard')
+    s = Steps().wait('SCREEN:.*Easy').add(f'TAP:240,{FIRST_NEW}').wait('Entering activity: SudokuBoard')
     s.add('TAP:60,180')  # first cell, below the save-error notice
     s.add(f'TAP:{tap(DIGIT[1])}').add(BACK)
     s.wait('SCREEN:.*Could not save.*Continue')
@@ -319,7 +323,7 @@ def theme_captures():
     for theme, name in enumerate(THEMES):
         s = Steps().wait('SCREEN:.*Easy').add(shot(f'{name}-list'))
         if theme == 1:
-            s.add(f'TAP:240,{ROW[0]}').wait('Entering activity: SudokuBoard').add(shot(f'{name}-board'))
+            s.add(f'TAP:240,{FIRST_NEW}').wait('Entering activity: SudokuBoard').add(shot(f'{name}-board'))
         s.add('QUIT')
         run(f'theme-{name}', str(s), theme=theme)
     for path in ART.glob('*.bmp'):

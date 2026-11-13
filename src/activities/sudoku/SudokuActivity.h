@@ -3,9 +3,9 @@
 
 #include "activities/UiListActivity.h"
 
-// Sudoku start list: Continue (when a game is saved), then one row per
-// difficulty. Puzzle files are read from /games/sudoku/; the gear opens
-// Sudoku settings.
+// Sudoku start page: a filled Continue button (when a game is saved), then a
+// "New game" section with one outlined button per difficulty. Puzzle files are
+// read from /games/sudoku/; the gear opens Sudoku settings.
 class SudokuActivity final : public UiListActivity {
  public:
   SudokuActivity(GfxRenderer& renderer, MappedInputManager& input, bool openSettingsOnEnter = false)
@@ -29,7 +29,8 @@ class SudokuActivity final : public UiListActivity {
   sudoku::PackInfo packInfo[sudoku::DIFFICULTIES]{};
   Row rows[MAX_ROWS]{};
   int rowCount = 0;
-  char values[MAX_ROWS][32]{};
+  // Continue progress, or a difficulty name with its pack status.
+  char labels[MAX_ROWS][48]{};
   // Latest status shown above the list; nullptr when none.
   const char* notice = nullptr;
 
@@ -38,7 +39,11 @@ class SudokuActivity final : public UiListActivity {
   int listCount() const override { return rowCount; }
   void buildScreen(UiScreen& screen) override;
   void buildHeader(UiScreen& screen);
+  void buildContinue(UiScreen& screen, int index);
+  void buildDifficulty(UiScreen& screen, int index, const freeink::ui::StyleSet& styles);
   void activateIndex(int index) override;
+  // The page always fits, so vertical swipes have nothing to scroll.
+  bool handleCustomInput() override;
   void onBackButton() override;
   void drawChrome() override {}
   void drawFooter() override {}
@@ -46,6 +51,5 @@ class SudokuActivity final : public UiListActivity {
   void confirmReplace(sudoku::Difficulty difficulty);
   void openBoard();
   void openSettings();
-  static void provideRow(void* context, uint16_t index, freeink::ui::ListItem& item);
   static void action(const freeink::ui::ActionEvent& event, void* context);
 };

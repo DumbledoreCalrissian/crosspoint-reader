@@ -1,7 +1,11 @@
 # Sudoku
 
-Open **Sudoku** on Home and choose a difficulty. If the shortcut is below the
-visible rows, swipe or use Up/Down to reveal it. The board is touch-operated.
+Open **Sudoku** on Home. If the shortcut is below the visible rows, swipe or
+use Up/Down to reveal it. The board is touch-operated.
+
+The **Continue** button at the top reopens a saved game and shows its
+difficulty and progress. Under **New game**, choose a difficulty. A difficulty
+without a usable pack shows "Not installed" or "Damaged" and cannot be started.
 
 ## Install puzzles
 
@@ -16,8 +20,7 @@ to `/games/sudoku/` on the card. The files are `easy.cpsd`, `medium.cpsd`,
 In the default simulator card, use `fs_/games/sudoku/`.
 
 Puzzles are taken in file order, with the next puzzle remembered for each
-difficulty. **Continue** reopens the saved game. Starting another game asks
-before replacing it.
+difficulty. Starting a new game while one is saved asks before replacing it.
 
 ## Play
 
@@ -31,7 +34,7 @@ Tap a cell, then a digit. Given digits cannot be changed.
 - **Reveal** fills the selected cell. Check and Reveal each count as a hint.
 - **Mark conflicts** underlines a repeated digit in a row, column or box.
 
-A solved board stays visible until **Done** returns to the start list.
+A solved board stays visible until **Done** returns to the start page.
 Settings can hide Easy, turn conflict marking off, or remove Check and Reveal.
 
 ## Saving
