@@ -7,6 +7,7 @@ from pathlib import Path
 import struct
 import tempfile
 import unittest
+import zlib
 
 
 spec = importlib.util.spec_from_file_location(
@@ -122,6 +123,7 @@ class BuildTest(BankTestCase):
         entry = provenance["files"][0]
         self.assertEqual(entry["records"], 2)
         self.assertEqual(entry["output_sha256"], hashlib.sha256(data).hexdigest())
+        self.assertEqual(entry["records_body_crc32"], f"{info['records_crc']:08x}")
         self.assertEqual(json.loads((out / "PROVENANCE.json").read_text()), provenance)
 
     def test_output_is_deterministic(self):
@@ -172,7 +174,29 @@ class StrictInputTest(BankTestCase):
         # must come with a format or converter version change.
         out, _ = self.build({"easy": source_line(PUZZLE_A) + source_line(PUZZLE_B, " 2.3")})
         self.assertEqual(hashlib.sha256((out / "easy.cpsd").read_bytes()).hexdigest(),
-                         "128ed66033f62d251815f93bd96f5c1bb7b10711ef22c498b84b1bdf42b24b96")
+                         "529018190e572aedae04af98e31aad7b956fcddb3ca26f94198edcbfa1d07c76")
+
+    def test_records_crc_depends_on_content_and_order(self):
+        first, _ = self.build({"easy": source_line(PUZZLE_A) + source_line(PUZZLE_B)})
+        swapped, _ = self.build({"easy": source_line(PUZZLE_B) + source_line(PUZZLE_A)})
+        other, _ = self.build({"easy": source_line(PUZZLE_A) + source_line(PUZZLE_B, " 1.3")})
+        crcs = {bank.read_pack(out / "easy.cpsd")[0]["records_crc"] for out in (first, swapped, other)}
+        self.assertEqual(len(crcs), 3)
+        blob = (first / "easy.cpsd").read_bytes()[512:]
+        self.assertNotEqual(bank.records_body_crc(blob), bank.crc32(blob))
+        # The documented definition, computed independently of the converter.
+        bodies = b"".join(blob[i:i + 92] for i in range(0, len(blob), 96))
+        self.assertEqual(bank.read_pack(first / "easy.cpsd")[0]["records_crc"], zlib.crc32(bodies))
+
+    def test_reader_rejects_format_version_1(self):
+        out, _ = self.build({"easy": source_line(PUZZLE_A)})
+        path = out / "easy.cpsd"
+        data = bytearray(path.read_bytes())
+        struct.pack_into("<H", data, 4, 1)
+        struct.pack_into("<I", data, 508, bank.crc32(bytes(data[:508])))
+        path.write_bytes(bytes(data))
+        with self.assertRaisesRegex(bank.BankError, "version 2"):
+            bank.read_pack(path)
 
     def test_two_digit_rating(self):
         out, _ = self.build({"diabolical": source_line(PUZZLE_A, "10.4")})
@@ -218,7 +242,7 @@ def rewrite_record(path, index, mutate):
     mutate(record)
     struct.pack_into("<I", record, 92, bank.crc32(bytes(record[:92])))
     data[start:start + 96] = record
-    struct.pack_into("<I", data, 16, bank.crc32(bytes(data[512:])))
+    struct.pack_into("<I", data, 16, bank.records_body_crc(bytes(data[512:])))
     struct.pack_into("<I", data, 508, bank.crc32(bytes(data[:508])))
     path.write_bytes(bytes(data))
 
@@ -249,7 +273,7 @@ class ReaderTest(BankTestCase):
         path = self.built_pack()
         data = bytearray(path.read_bytes())
         data[512 + 5] ^= 0x10  # record 0 body changes, its stored CRC does not
-        struct.pack_into("<I", data, 16, bank.crc32(bytes(data[512:])))
+        struct.pack_into("<I", data, 16, bank.records_body_crc(bytes(data[512:])))
         struct.pack_into("<I", data, 508, bank.crc32(bytes(data[:508])))
         path.write_bytes(bytes(data))
         with self.assertRaisesRegex(bank.BankError, "record 0 CRC"):

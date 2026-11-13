@@ -1,4 +1,4 @@
-"""Build presolved Sudoku puzzle files (CPSD version 1) from the Sudoku Exchange bank.
+"""Build presolved Sudoku puzzle files (CPSD version 2) from the Sudoku Exchange bank.
 
 Usage:
     python scripts/build_sudoku_bank.py --source DIR --out DIR [--jobs N]
@@ -28,8 +28,8 @@ SOURCE_URL = "https://github.com/grantm/sudoku-exchange-puzzle-bank"
 SOURCE_COMMIT = "d8c8ebaee0c08c412cfba96af1923dfa61c83317"
 LICENCE = "Public domain: dedicated by the author with Unlicense-style text (LICENSE.txt in the source repository)."
 
-CONVERTER_VERSION = 1
-FORMAT_VERSION = 1
+CONVERTER_VERSION = 2
+FORMAT_VERSION = 2
 MAGIC = b"CPSD"
 HEADER_SIZE = 512
 RECORD_SIZE = 96
@@ -193,9 +193,22 @@ def provenance_text(name):
     return data.ljust(PROVENANCE_SIZE, b"\0")
 
 
+def records_body_crc(blob):
+    """CRC32 of bytes 0-91 of every record, in order.
+
+    Each record ends with its own CRC32, and a CRC over data followed by its CRC
+    is the same constant for any data. Leaving those 4 bytes out makes the value
+    depend on the puzzles, not only on their count (format version 1 included them).
+    """
+    crc = 0
+    for start in range(0, len(blob), RECORD_SIZE):
+        crc = zlib.crc32(blob[start:start + RECORD_SIZE - 4], crc)
+    return crc & 0xFFFFFFFF
+
+
 def encode_header(name, difficulty, records_blob, count, min_rating, max_rating):
     head = struct.pack("<4sHHHBBII", MAGIC, FORMAT_VERSION, HEADER_SIZE, RECORD_SIZE, difficulty, 0, count,
-                       crc32(records_blob))
+                       records_body_crc(records_blob))
     head += bytes.fromhex(SOURCE_COMMIT)
     head += struct.pack("<HHI", min_rating, max_rating, CONVERTER_VERSION)
     head += provenance_text(name)
@@ -252,7 +265,7 @@ def read_pack(path):
     if len(data) != HEADER_SIZE + RECORD_SIZE * count:
         raise BankError(f"{path}: length does not match the record count")
     blob = data[HEADER_SIZE:]
-    if crc32(blob) != records_crc:
+    if records_body_crc(blob) != records_crc:
         raise BankError(f"{path}: records CRC mismatch")
     min_rating, max_rating, converter = struct.unpack_from("<HHI", header, 40)
     provenance = header[PROVENANCE_OFFSET:PROVENANCE_OFFSET + PROVENANCE_SIZE].rstrip(b"\0").decode("utf-8")
@@ -347,7 +360,7 @@ def _build_into(source_dir, out_dir, staging, sources, jobs):
                 "source_file": f"{name}.txt", "source_sha256": source_sha256,
                 "output_file": out_path.name, "output_sha256": sha256_bytes(pack), "output_bytes": len(pack),
                 "records": count, "rating_min": min_rating / 10, "rating_max": max_rating / 10,
-                "records_crc32": f"{info['records_crc']:08x}",
+                "records_body_crc32": f"{info['records_crc']:08x}",
             })
             print(f"{name}: {count} puzzles, {len(pack)} bytes, sha256 {sha256_bytes(pack)}", flush=True)
     finally:

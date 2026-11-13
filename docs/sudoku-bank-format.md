@@ -1,4 +1,4 @@
-# Sudoku bank format (CPSD version 1)
+# Sudoku bank format (CPSD version 2)
 
 Sudoku puzzle files (`.cpsd`) hold presolved puzzles for the Picco fork's Sudoku.
 `scripts/build_sudoku_bank.py` creates them from the public-domain
@@ -25,13 +25,13 @@ from 0. Record *i* starts at byte `512 + 96 × i` and holds the puzzle on line
 | Offset | Size | Field |
 | ---: | ---: | --- |
 | 0 | 4 | Magic: ASCII `CPSD` |
-| 4 | 2 | Format version: `1` |
+| 4 | 2 | Format version: `2` |
 | 6 | 2 | Header size: `512` |
 | 8 | 2 | Record size: `96` |
 | 10 | 1 | Difficulty: `0` easy, `1` medium, `2` hard, `3` diabolical |
 | 11 | 1 | Reserved, `0` |
 | 12 | 4 | Record count |
-| 16 | 4 | CRC32 of all record bytes (identifies the puzzle set) |
+| 16 | 4 | Records CRC: one CRC32 over bytes 0–91 of every record, as if joined in order (identifies the puzzle set) |
 | 20 | 20 | Source commit SHA1: the 20 bytes of the hexadecimal hash, in order |
 | 40 | 2 | Lowest rating × 10 |
 | 42 | 2 | Highest rating × 10 |
@@ -76,7 +76,14 @@ When it reads a record, it rejects the record when any of these is wrong:
 - rating: inside the header's lowest–highest range.
 
 The records CRC at offset 16 identifies the puzzle set (for example, to reset
-saved progress when a file is replaced). A device need not check it when opening
+saved progress when a file is replaced). It leaves out each record's own CRC:
+a CRC32 over data followed by its CRC is the same constant for any data, so
+including those bytes would make the value depend only on the record count.
+Format version 1 had that flaw and was withdrawn; readers accept only version 2.
+To compute it, start with `crc = 0` and for each record continue the running
+CRC over its 92-byte body, as zlib's `crc32(body, crc)` does. Do not restart the
+CRC per record or combine per-record values.
+A device need not check the records CRC when opening
 a file, because that would mean reading the whole file; downloads are checked
 with SHA256 instead. The converter's own reader checks it.
 
