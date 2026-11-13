@@ -14,6 +14,7 @@
 #include "ChapterPosition.h"
 #include "ClipSelectionActivity.h"
 #include "EpubReaderMenuActivity.h"
+#include "EpubReadingStats.h"
 #include "LinkNoteTitle.h"
 #include "ProgressMapper.h"
 #include "ReaderActivity.h"
@@ -22,6 +23,13 @@
 
 class EpubReaderActivity final : public ReaderActivity {
   std::shared_ptr<Epub> epub;
+  std::unique_ptr<EpubReadingStats> readingStatistics;
+  bool statisticsLoadAttempted = false;
+  int statisticsSpine = -1;
+  int statisticsPage = -1;
+  bool sleepPrepared = false;
+  void pauseStatistics();
+  bool isEpubBook() const;
   std::unique_ptr<Epub::SyncMetadata> vocabularyMetadata;
   std::unique_ptr<Section> section = nullptr;
   int currentSpineIndex = 0;
@@ -255,6 +263,9 @@ class EpubReaderActivity final : public ReaderActivity {
       : ReaderActivity("EpubReader", renderer, mappedInput, std::move(bookPath), allowFastInitialRefresh) {}
   ~EpubReaderActivity() override;
 
+  void onCovered() override;
+  void onExit() override;
+  void prepareForSleep() override;
   void loop() override;
   void render(RenderLock&& lock) override;
 

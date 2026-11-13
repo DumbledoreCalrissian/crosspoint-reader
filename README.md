@@ -17,7 +17,8 @@ plus:
 - File Transfer from the Browse Files root header.
 - `My Clippings.txt` hidden from Library and Home, while remaining accessible in Browse Files.
 
-EPUB reading statistics is partially implemented and not yet available in the reader.
+The EPUB reader menu includes Book statistics: current progress, reading time,
+forward page turns and a confirmed reset that keeps position and bookmarks.
 
 ## Try the simulator
 
