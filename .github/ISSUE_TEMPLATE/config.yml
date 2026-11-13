@@ -1,8 +1,0 @@
-blank_issues_enabled: false
-contact_links:
-  - name: Read this fork's scope
-    url: https://github.com/DumbledoreCalrissian/crosspoint-reader/blob/picco/SCOPE.md
-    about: Accepted downstream features and boundaries for the Picco build.
-  - name: Read this fork's roadmap
-    url: https://github.com/DumbledoreCalrissian/crosspoint-reader/blob/picco/ROADMAP.md
-    about: Implemented features, unfinished EPUB statistics and verification limits.

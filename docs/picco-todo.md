@@ -1,138 +1,24 @@
-# Offline Todo (local fork)
+# Todo
 
-This fork adds a built-in Todo application. Interactive apps are outside upstream
-CrossPoint's reading-focused scope; this feature is maintained locally.
+Open **Todo** on Home, then **New task**. Type a description and tap **OK**.
 
-## Use
+- Tap a checkbox to complete or reopen a task.
+- Tap its description to edit it. Long descriptions wrap or truncate in the list;
+  editing shows the full text.
+- Tap the header bin to select tasks for deletion, then **Delete selected**
+  and confirm. Back cancels the selection.
+- The header arrow returns to Home. The bottom-edge upward Home gesture also works.
 
-Open **Todo** on Home (the checklist icon in themes with Home icons).
-Tap **New task**, type on the existing CrossPoint keyboard, and tap **OK**.
-Tap the checkbox to toggle completion; tap the task description to edit it directly.
-Completed tasks have a checkmark and strike-through on each visible text line.
-Tap the bin at the top right to open **Delete tasks**. Select any number of tasks,
-then tap **Delete selected (N)** and confirm. Selection checkboxes on this screen
-mean deletion selection, independently of task completion. Back cancels selection;
-no data is written until deletion is confirmed. A confirmed batch uses one save.
-Canceling the keyboard or confirmation also leaves saved data unchanged.
-The Todo header arrow returns Home; the deletion header arrow returns to Todo.
-The shared bottom-edge Home gesture works from either screen. No hardware Home
-key or provisional Confirm button is required.
+Changes save immediately. Todo works offline and supports up to 32 tasks,
+with 192 UTF-8 bytes per description. Blank or invalid text is rejected.
+Swipe to scroll longer lists.
 
-Swipe within a list to scroll. Task labels wrap up to two lines and truncate
-longer text; tapping the description opens its full text in the keyboard.
-Maximum: 32 tasks, 192 UTF-8 bytes per task.
-Leading/trailing ASCII whitespace is trimmed; blank text, control characters,
-invalid UTF-8, and over-limit text are rejected. The keyboard enforces the byte
-limit without splitting a character. There are no background tasks or network
-connections for Todo, and each accepted change is saved immediately.
+## Save errors and recovery
 
-## Native visual styling
+If saving fails, the previous tasks remain visible. Resolve card access and retry.
+Saves are `/.crosspoint/todo-a.json` and `/.crosspoint/todo-b.json`; back up both.
 
-Todo uses Library's header geometry, theme title alignment, bezel insets and
-battery/clock status strip. Clock visibility follows CrossPoint's existing
-Display setting. List rows inherit the same selected background, fonts, padding,
-radius and spacing as native menus: Lyra uses a light gray dithered pill;
-Classic and RoundedRaff use their native dark selection. New task has normal
-menu typography. Checkbox taps focus their task without opening the keyboard;
-text taps open editing. Deletion uses the shared themed button, including its
-disabled state, with native dialog-button spacing. Checkboxes and the existing
-one-pixel completed-text strike-through retain their geometry.
-Empty lists use native centered text; error messages align with the list’s text
-insets and replace the empty placeholder when data cannot be loaded.
-
-There is one fixed UI font tier in this firmware checkout (`UIScale.h`); no
-UI-scale selector is present. Classic, Lyra, Lyra Extended, RoundedRaff and
-Cover Grid use the current theme metrics. No new SDK changes, settings or
-persistent state are needed for this visual pass.
-
-## Storage and recovery
-
-On the microSD: `/.crosspoint/todo-a.json` and `/.crosspoint/todo-b.json`.
-Simulator default: `crosspoint-reader/fs_/.crosspoint/`; override the SD root with
-`CROSSPOINT_SIM_SD`. Paths stay the same inside the virtual card.
-
-Version 1 JSON has `version`, `generation`, `nextId`, `checksum`, and `tasks`.
-Each task has integer `id`, boolean `completed`, and string `text`. IDs increase
-and are never reused after deletion. The checksum is FNV-1a over little-endian
-uint32 version, generation, nextId, count, then each task's uint32 ID, one byte
-completion, UTF-8 text, and a zero byte. It detects accidental damage; it is not
-an authentication mechanism. Keep both snapshots when backing up data.
-
-The newest valid generation is loaded. A new snapshot is written to `todo.tmp`,
-checked for serialization length and successful close, then renamed over the
-inactive slot. The active slot is retained. Incomplete temp files are ignored.
-A failed save leaves the displayed model unchanged and reports an error; retry
-or reopen Todo after resolving SD access. No-op edits and cancellation do not
-write files. Missing or zero-byte files start empty. If both nonempty snapshots
-are invalid (or no valid snapshot survives a damaged one), editing is disabled;
-files are preserved. Exit Todo, back up both snapshots, inspect the card and
-restore an intact backup. To deliberately start over, move both JSON files out
-of `/.crosspoint/`, then reopen Todo. Do not clear unrelated `.crosspoint` data.
-
-This scheme preserves the preceding snapshot across short writes, close failures,
-and failed promotion. FAT/power-loss behavior cannot be made transactional by
-this application; a physical card/controller failure can still corrupt both
-copies. Host tests cover the algorithm, not electrical durability.
-
-## Implementation and budgets
-
-- `lib/Todo/TodoModel.*`: bounded tasks and UTF-8 validation.
-- `lib/Todo/TodoStore.*`: versioned snapshots through HalStorage.
-- `src/activities/todo/TodoActivity.*`: UiListActivity, keyboard result adapter,
-  and ConfirmationActivity. ActivityManager owns activity lifetime.
-- The SDK FreeInkUI list supplies separate leading-checkbox and label actions;
-  text targets draw optional strike-through per wrapped/truncated line. These
-  opt-in additions leave other lists unchanged. The SDK is on the local
-  `feat/todo-list-controls` branch; keep its recorded submodule revision.
-- Home menu and cover-grid toolbar expose the application.
-
-The model is 6,416 bytes on the tested arm64 host. One model is resident inside
-the checked activity allocation; load/mutation uses one checked temporary model.
-ArduinoJson allocations are capped at 32 KiB per document plus allocation headers;
-input files are capped at 32 KiB and nesting at four. These are bounds, not
-measured ESP32 heap usage. The candidate model coexists with the live model and
-JSON document only during I/O. The keyboard/confirmation retains Todo as its
-parent; render rows are supplied lazily and retain no extra task strings.
-Deletion selection uses a 32-bit mask, a 64-byte footer label, and a 128-byte
-stack array of stable IDs during confirmation. Long main lists cap the viewport at ten full native-sized rows, keeping
-separate checkbox/label hits within the existing 24-entry interaction table.
-Short lists and single-action deletion lists use the available native viewport. Existing text wrapping may allocate temporary lines;
-strike-through reuses those same lines.
-The Lucide list-todo Home icon uses a static 128-byte bitmap per consuming
-translation unit; it adds no owned heap storage. There are no additional worker
-tasks, framebuffers, or runtime dependencies. The existing
-keyboard owns its own temporary text string. A future text input can replace the
-`enterText`/`acceptText` boundary without changing the model or storage.
-
-## Verification
-
-From the firmware checkout after building `simulator_picco`:
-
-```sh
-sh test/todo/run.sh
-../.venv/bin/python test/todo/simulator.py
-../.venv/bin/python test/todo/reader_smoke.py
-sh freeink-sdk/libs/ui/FreeInkUI/test/host/run.sh
-../.venv/bin/python test/todo/visuals.py
-../.venv/bin/python test/todo/native_appearance.py
-```
-
-The first runs model/persistence checks under AddressSanitizer and UBSan using
-ArduinoJson and an injected storage adapter. The second uses real firmware,
-keyboard, dialogs and host-backed SD with scripted SDL touch events. The visual capture script records empty, populated, wrapped/completed, deletion
-selection and damaged-data states across all five themes, verifies that task
-snapshots are unchanged, and exports PNGs for inspection. Its list-Home entry
-uses the simulator Confirm key for QA; the dedicated workflow test remains
-touch-only. The native appearance check compares selected background pixels
-against actual Settings screens in Classic, Lyra and RoundedRaff, and verifies
-checkbox focus through the keyboard target. These capture checks need Pillow
-in the workspace virtual environment (`../.venv/bin/python -m pip install Pillow`).
-Test data
-and logs stay under the parent workspace's `qa-artifacts/` and `logs/`.
-
-Physical Picco validation remains required: touch calibration, all orientations,
-SD removal/write failures and power interruption, repeated keyboard/task cycles
-and internal/PSRAM largest free blocks, e-ink refresh/ghosting, sleep/wake and
-frontlight/slide switch behavior. No hardware validation or flashing is implied
-by simulator checks. Other languages currently use the English fallback for new
-Todo labels; displaying Unicode depends on installed glyph coverage.
+If no intact save survives damaged data, editing is disabled and files are kept.
+Exit Todo, back up the saves and restore an intact copy. To deliberately start
+empty, move both JSON files out of `/.crosspoint/` and reopen Todo. Leave other
+files in that directory alone: they include settings, reading positions and Sudoku.

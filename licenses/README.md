@@ -1,7 +1,7 @@
 # Firmware licenses
 
 This independent Picco fork retains CrossPoint's original MIT notice in the root `LICENSE` file.
-See [ATTRIBUTIONS.md](../ATTRIBUTIONS.md) for source provenance and downstream changes.
+Source project credits are in [README.md](../README.md#credits-and-licences).
 Third-party code and assets keep their own licenses.
 The combined firmware executable uses GPLv3 because it includes wolfSSL.
 
