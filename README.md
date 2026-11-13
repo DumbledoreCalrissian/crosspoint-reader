@@ -11,20 +11,27 @@
 > sleep and power behaviour are unverified on real hardware. Use it at your own
 > risk.
 >
-> Changes in this fork (branch `picco`):
+> Changes on this branch (`feat/sudoku-game`, based on `picco`):
 > - an offline [Todo list](docs/picco-todo.md);
 > - a foreground [Pomodoro timer](docs/picco-pomodoro.md);
+> - an offline [Sudoku game](docs/picco-sudoku.md) with notes, undo, Check, Reveal
+>   and automatic saving;
 > - File Transfer moved from Home to the Browse Files header;
 > - the `My Clippings.txt` export hidden from Library and Home;
 > - small UI extensions in a forked
 >   [FreeInk SDK](https://github.com/DumbledoreCalrissian/freeink-sdk) (branch
 >   `feat/todo-list-controls`).
 >
-> To build the simulator, clone this repository and the forked simulator side by
-> side:
+> Sudoku uses presolved `.cpsd` puzzle files copied to `/games/sudoku/` on the SD
+> card. Get the four difficulty packs from
+> [sudoku-bank-v2](https://github.com/DumbledoreCalrissian/crosspoint-reader/releases/tag/sudoku-bank-v2).
+> Downloading packs from Sudoku settings is not implemented yet.
+>
+> To build this branch in the simulator, clone this repository and the forked
+> simulator side by side:
 >
 > ```sh
-> git clone --recurse-submodules -b picco https://github.com/DumbledoreCalrissian/crosspoint-reader.git
+> git clone --recurse-submodules -b feat/sudoku-game https://github.com/DumbledoreCalrissian/crosspoint-reader.git
 > git clone -b fix/picco-test-link https://github.com/DumbledoreCalrissian/crosspoint-simulator.git
 > ```
 >
