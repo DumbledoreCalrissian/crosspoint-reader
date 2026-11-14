@@ -1,7 +1,5 @@
 #include "DeskHomeUi.h"
 
-#include <FreeInkUIGfxRenderer.h>
-#include <FreeInkUIIcon.h>
 #include <GfxRenderer.h>
 #include <I18n.h>
 #include <Logging.h>
@@ -20,7 +18,6 @@
 #include "components/UITheme.h"
 #include "components/WeatherPresentation.h"
 #include "components/icons/clock.h"
-#include "components/icons/listIcons.h"
 #include "components/icons/pages.h"
 #include "components/themes/desk/DeskTheme.h"
 #include "fontIds.h"
@@ -47,8 +44,20 @@ constexpr int STAT_ICON = 24;
 constexpr int ICON_GAP = 4;
 constexpr int STAT_MIN_GAP = 8;  // between the time and the pages-turned group
 constexpr int DOT_SIZE = 8;
-constexpr int TODO_ICON = 24;
+constexpr int TODO_ROW_MIN_HEIGHT = 24;
+constexpr int TODO_TEXT_INSET = 16;
 constexpr int TODO_GAP = 4;
+constexpr int CHEVRON_INSET = 10;
+constexpr int CHEVRON_RESERVE = 24;
+
+void drawWidgetChevron(const GfxRenderer& renderer, const Rect rect) {
+  const int x = rect.x + rect.width - CHEVRON_INSET;
+  const int y = rect.y + (renderer.getLineHeight(UI_10_FONT_ID) - 10) / 2;
+  for (int i = 0; i < 2; ++i) {
+    renderer.drawLine(x - i, y, x + 5 - i, y + 5, true);
+    renderer.drawLine(x + 5 - i, y + 5, x - i, y + 10, true);
+  }
+}
 
 struct BookLayout {
   Rect current;
@@ -76,15 +85,14 @@ int stripBarY(const GfxRenderer& renderer, const BookLayout& layout) {
   return layout.top + SMALL_H + TEXT_GAP + 2 * renderer.getLineHeight(SMALL_FONT_ID) + 4;
 }
 
-// Left-aligned, wrapped and ellipsized; returns the height used.
-int drawTitle(const GfxRenderer& renderer, const int fontId, const EpdFontFamily::Style style, const int x, const int y,
-              const int width, const int maxLines, const std::string& title) {
+// Left-aligned, wrapped and ellipsized.
+void drawTitle(const GfxRenderer& renderer, const int fontId, const EpdFontFamily::Style style, const int x,
+               const int y, const int width, const int maxLines, const std::string& title) {
   const int lineH = renderer.getLineHeight(fontId);
   const auto lines = renderer.wrappedText(fontId, title.c_str(), width, maxLines, style);
   for (size_t i = 0; i < lines.size(); ++i) {
     renderer.drawText(fontId, x, y + static_cast<int>(i) * lineH, lines[i].c_str(), true, style);
   }
-  return static_cast<int>(lines.size()) * lineH;
 }
 
 // Percentage at the right end of a bar that fills the rest of the width.
@@ -153,6 +161,8 @@ UIIcon itemIcon(const HomeMenuItem item) {
       return Pomodoro;
     case HomeMenuItem::SUDOKU:
       return Sudoku;
+    case HomeMenuItem::WEATHER:
+      return Weather;
     default:
       return None;
   }
@@ -181,7 +191,7 @@ void DeskHomeUi::begin(const HomeMenuItem slotItem, const std::vector<RecentBook
 Rect DeskHomeUi::todoRect() const {
   const auto layout = bookLayout(renderer);
   const int lineH = renderer.getLineHeight(SMALL_FONT_ID);
-  const int rowH = std::max(lineH, TODO_ICON);
+  const int rowH = std::max(lineH, TODO_ROW_MIN_HEIGHT);
   return Rect{layout.stripX, stripBarY(renderer, layout) + lineH + 12 + DOT_SIZE + TEXT_GAP,
               STRIP_PAGE * layout.smallW + (STRIP_PAGE - 1) * SMALL_GAP,
               renderer.getLineHeight(UI_10_FONT_ID) + TODO_GAP + 1 + TODO_GAP + static_cast<int>(TODO_ROWS) * rowH};
@@ -199,7 +209,7 @@ void DeskHomeUi::loadTodo() {
     LOG_ERR("HOME", "Todo snapshot load failed; widget hidden");
     return;
   }
-  const int textWidth = todoRect().width - TODO_ICON - TODO_GAP;
+  const int textWidth = todoRect().width - TODO_TEXT_INSET;
   for (size_t i = 0; i < store->model().size() && todoCount < TODO_ROWS; ++i) {
     const auto& task = *store->model().at(i);
     if (task.completed) continue;
@@ -221,17 +231,15 @@ void DeskHomeUi::drawTodo() const {
   if (!todoCount) return;
   const auto rect = todoRect();
   const int lineH = renderer.getLineHeight(SMALL_FONT_ID);
-  const int rowH = std::max(lineH, TODO_ICON);
+  const int rowH = std::max(lineH, TODO_ROW_MIN_HEIGHT);
   renderer.drawText(UI_10_FONT_ID, rect.x, rect.y, tr(STR_TODO), true, EpdFontFamily::BOLD);
+  drawWidgetChevron(renderer, rect);
   const int ruleY = rect.y + renderer.getLineHeight(UI_10_FONT_ID) + TODO_GAP;
   renderer.drawLine(rect.x, ruleY, rect.x + rect.width - 1, ruleY, true);
-  freeink::ui::GfxRendererTarget target(renderer);
   for (size_t i = 0; i < todoCount; ++i) {
     const int y = ruleY + 1 + TODO_GAP + static_cast<int>(i) * rowH;
-    target.bitmap(freeink::ui::Rect{static_cast<int16_t>(rect.x), static_cast<int16_t>(y + (rowH - TODO_ICON) / 2),
-                                    TODO_ICON, TODO_ICON},
-                  freeink::ui::bitmapFromIcon(icon_checkbox_off_24), freeink::ui::BitmapMode::Contain);
-    renderer.drawText(SMALL_FONT_ID, rect.x + TODO_ICON + TODO_GAP, y + (rowH - lineH) / 2, todoTexts[i], true);
+    renderer.fillRoundedRect(rect.x + 3, y + (rowH - 5) / 2, 5, 5, 2, Color::Black);
+    renderer.drawText(SMALL_FONT_ID, rect.x + TODO_TEXT_INSET, y + (rowH - lineH) / 2, todoTexts[i], true);
   }
 }
 
@@ -388,9 +396,9 @@ void DeskHomeUi::drawCover(const Rect rect, const int bookIndex, const bool sele
 // Unknown values are omitted, as elsewhere on Home.
 void DeskHomeUi::drawCurrentStats(const Rect rect) const {
   const BookReadingSummary& summary = summaries[0];
-  int y = rect.y +
-          drawTitle(renderer, UI_10_FONT_ID, EpdFontFamily::BOLD, rect.x, rect.y, rect.width, 2, (*books)[0].title);
+  drawTitle(renderer, UI_10_FONT_ID, EpdFontFamily::BOLD, rect.x, rect.y, rect.width, 2, (*books)[0].title);
   const int lineH = renderer.getLineHeight(UI_10_FONT_ID);
+  int y = rect.y + 2 * lineH;
   if (summary.percent >= 0) {
     y += ROW_GAP;
     drawProgress(renderer, UI_10_FONT_ID, EpdFontFamily::BOLD, rect.x, y, rect.width, BAR_HEIGHT, summary.percent,
@@ -574,9 +582,12 @@ void DeskHomeUi::loadWeather() {
   if (!store->available() || !store->model().cached) return;
   weatherData = store->model();
   weatherNow = std::max<int64_t>(0, trustedtime::trustedNow());
-  const auto label =
-      renderer.truncatedText(UI_10_FONT_ID, weatherData.location.name, weatherRect().width, EpdFontFamily::BOLD);
+  const auto label = renderer.truncatedText(UI_10_FONT_ID, weatherData.location.name,
+                                            weatherRect().width - CHEVRON_RESERVE, EpdFontFamily::BOLD);
   snprintf(weatherTitle, sizeof(weatherTitle), "%s", label.c_str());
+  const auto condition =
+      renderer.truncatedText(SMALL_FONT_ID, weatherui::condition(weatherData.forecast.code), weatherRect().width - 60);
+  snprintf(weatherCondition, sizeof(weatherCondition), "%s", condition.c_str());
 }
 bool DeskHomeUi::weatherTapped() const {
   if (!weatherData.cached) return false;
@@ -593,14 +604,14 @@ void DeskHomeUi::drawWeather() const {
   int y = r.y;
   char value[96], chance[20];
   renderer.drawText(UI_10_FONT_ID, r.x, y, weatherTitle, true, EpdFontFamily::BOLD);
+  drawWidgetChevron(renderer, r);
   y += heading + 4;
   renderer.drawLine(r.x, y, r.x + r.width - 1, y, true);
   y += 10;
   renderer.drawIcon(weatherui::icon(f.code, f.isDay), r.x, y, 48);
   weatherui::temperature(value, sizeof(value), f.temperature, weatherData.fahrenheit, true);
   renderer.drawText(UI_12_FONT_ID, r.x + 60, y, value, true, EpdFontFamily::BOLD);
-  renderer.drawText(SMALL_FONT_ID, r.x + 60, y + renderer.getLineHeight(UI_12_FONT_ID) + 4,
-                    weatherui::condition(f.code), true);
+  renderer.drawText(SMALL_FONT_ID, r.x + 60, y + renderer.getLineHeight(UI_12_FONT_ID) + 4, weatherCondition, true);
   y += 48 + 12;
   weatherui::percent(chance, sizeof(chance), f.humidity);
   snprintf(value, sizeof(value), tr(STR_WEATHER_HUMIDITY_VALUE), chance);

@@ -18,7 +18,7 @@ constexpr ThemeMetrics values = [] {
 // top right. Other screens keep Lyra styling.
 class DeskTheme : public Lyra3CoversTheme {
  public:
-  // Square hit/draw area for the Home menu button, right of the header band.
+  // Label-sized hit/draw area for the Home menu button, right of the header band.
   static Rect homeMenuButtonRect(const GfxRenderer& renderer);
   // Draws the "Continue reading" label left of the button when there are books.
   static void drawHomeMenuRow(const GfxRenderer& renderer, Rect button, bool selected, bool hasBooks);

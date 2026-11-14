@@ -1,6 +1,6 @@
 # Desk weather
 
-Open **Weather** from the Desk app menu. Choose **Change location**, enter a city,
+Open **Apps → Weather** on Desk Home. Choose **Change location**, enter a city,
 connect to Wi-Fi, then select the matching city and region. Choose **Refresh** to
 fetch its forecast. No city is preselected. Once a forecast is saved, tapping the
 Desk weather widget opens this screen.

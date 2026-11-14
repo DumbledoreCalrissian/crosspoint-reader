@@ -26,6 +26,7 @@
 #include "components/icons/sudoku.h"
 #include "components/icons/todo.h"
 #include "components/icons/transfer.h"
+#include "components/icons/weather.h"
 #include "components/icons/wifi.h"
 #include "fontIds.h"
 #include "util/BookReadingSummary.h"
@@ -70,6 +71,8 @@ const uint8_t* iconForName(UIIcon icon) {
       return BookmarkIcon;
     case UIIcon::Blocks:
       return BlocksIcon;
+    case UIIcon::Weather:
+      return WeatherMenuIcon;
     default:
       return nullptr;
   }

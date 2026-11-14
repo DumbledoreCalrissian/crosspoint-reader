@@ -151,7 +151,8 @@ enum UIIcon {
   Blocks,
   Todo,
   Pomodoro,
-  Sudoku
+  Sudoku,
+  Weather
 };
 
 // Default theme implementation (Classic Theme)

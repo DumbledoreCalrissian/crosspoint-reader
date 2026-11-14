@@ -49,7 +49,8 @@ rsvg-convert -w 24 -h 24 freeink-sdk/libs/assets/Icons/lucide/icons/book-open.sv
 
 ## Weather
 
-`weather.h` contains 48 px widget masks and 64 px Weather screen masks from the pinned SDK's Lucide `sun`, `moon`,
+`weather.h` contains a 32 px Desk menu mask (`cloud-rain`), 48 px widget masks
+and 64 px Weather screen masks from the pinned SDK's Lucide `sun`, `moon`,
 `cloud-sun`, `cloud-moon`, `cloud`, `cloud-fog`, `cloud-rain`, `cloud-snow` and
 `cloud-lightning` SVGs. Regenerate with Homebrew `librsvg` and workspace Pillow:
 

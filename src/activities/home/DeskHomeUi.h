@@ -77,6 +77,7 @@ class DeskHomeUi final {
   weather::Snapshot weatherData;
   uint64_t weatherNow = 0;
   char weatherTitle[84]{};
+  char weatherCondition[84]{};
   void loadCalendar();
   void drawCalendar() const;
   bool calendarVisible = false;

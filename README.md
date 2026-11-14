@@ -26,8 +26,9 @@ cover, and Cover Grid thumbnails show each book's percentage and bar.
 The Desk theme shows the current book's cover large, with its title, progress,
 reading time and pages turned, and the other recent books as a swipeable strip
 of small covers with their titles and progress bars. Its other apps (Browse
-Files, Library, Settings, Todo, Pomodoro, Sudoku and any Plugins or OPDS
-shortcut) open from the menu button at the top right of Home.
+Files, Library, Settings, Todo, Pomodoro, Sudoku, Weather and any Plugins or OPDS
+shortcut) open from **Apps** at the top right of Home. Tapping the Todo preview
+opens Todo; its bullets do not complete tasks.
 Its [reading calendar](docs/reading-calendar.md) shows monthly minutes and a streak
 of days meeting your adjustable daily reading goal.
 Its [weather widget and screen](docs/weather.md) show a manually refreshed
