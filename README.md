@@ -29,10 +29,12 @@ of small covers with their titles and progress bars. Its other apps (Browse
 Files, Library, Settings, Todo, Pomodoro, Sudoku, Weather and any Plugins or OPDS
 shortcut) open from **Apps** at the top right of Home. Tapping the Todo preview
 opens Todo; its bullets do not complete tasks.
-Its [reading calendar](docs/reading-calendar.md) shows monthly minutes and a streak
-of days meeting your adjustable daily reading goal.
+Its [reading calendar](docs/reading-calendar.md) shows monthly minutes, a streak
+of days meeting your daily reading goal and the goal itself; tap the goal to change
+it in Settings.
 Its [weather widget and screen](docs/weather.md) show a manually refreshed
-three-day forecast, humidity and precipitation for a city you choose.
+three-day forecast, humidity and precipitation for a city you choose; tap the widget
+to open Weather. When there is no data, each widget says why instead of disappearing.
 
 ## Try the simulator
 
