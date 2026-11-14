@@ -130,7 +130,7 @@ Because the back gesture arrives as `Button::Back`, most button-era activities g
 | Helper | Status |
 |---|---|
 | `wasScreenTapped` / `wasScreenTouchDown` / `isScreenTouchHeld` | Consumed by the FUI snapshot builder. Direct use only in the two legacy surfaces |
-| `rowTouch` / `colTouch` | Legacy row/column band math. Sole remaining user: `HomeActivity` (theme-driven layout) |
+| `rowTouch` / `colTouch` | Legacy row/column band math. Remaining users: `HomeActivity` (theme-driven layout) and its `DeskHomeUi` |
 | `wasSwipe()` | Raw swipe direction, for behavior beyond the global gestures (reader page turns) |
 | `hasTouch()` | Still fine anywhere: gate touch-only chrome (on-screen Cancel/OK pairs) on it |
 

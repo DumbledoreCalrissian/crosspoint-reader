@@ -2,9 +2,11 @@
 #include <array>
 #include <atomic>
 #include <functional>
+#include <optional>
 #include <vector>
 
 #include "./FileBrowserActivity.h"
+#include "DeskHomeUi.h"
 #include "RecentBooksStore.h"
 #include "activities/Activity.h"
 #include "components/CoverGridHomeUi.h"
@@ -24,11 +26,8 @@ class HomeActivity final : public Activity {
   bool firstRenderDone = false;
   bool hasOpdsServers = false;
   bool hasPlugins = false;
-  // Desk theme: the shortcuts live behind one menu button (index recentBooks.size()).
-  bool deskHome = false;
-  // Desk menu panel drawn over Home; while open it owns the input.
-  bool deskMenuOpen = false;
-  int deskMenuSelected = 0;
+  // Desk theme only: menu button (index recentBooks.size()) and its panel.
+  std::optional<DeskHomeUi> deskUi;
   // The home "library" slot (index 2) shows Plugins while the plugin system is
   // enabled, otherwise OPDS when a server is configured. NONE hides the slot.
   // NetworkModeSelectionActivity lists OPDS in exactly the other cases.
@@ -78,26 +77,10 @@ class HomeActivity final : public Activity {
     return 0;
   }
 
-  // Convert menu index to HomeMenuItem (used in loop)
-  static HomeMenuItem indexToMenuItem(int idx, HomeMenuItem slot) {
-    int i = 0;
-    if (idx == i++) return HomeMenuItem::FILE_BROWSER;
-    if (idx == i++) return HomeMenuItem::LIBRARY;
-    if (slot != HomeMenuItem::NONE && idx == i++) return slot;
-    if (idx == i++) return HomeMenuItem::SETTINGS_MENU;
-    if (idx == i++) return HomeMenuItem::TODO;
-    if (idx == i++) return HomeMenuItem::POMODORO;
-    if (idx == i) return HomeMenuItem::SUDOKU;
-    return HomeMenuItem::NONE;
-  }
   void onRecentBookSelected(const std::string& path);
   // False when the item could not be opened (allocation failure); Home stays.
   bool openMenuItem(HomeMenuItem item);
-  int deskMenuCount() const;
-  void setDeskMenuOpen(bool open);
   void loopDeskMenu();
-  static const char* menuItemLabel(HomeMenuItem item);
-  static UIIcon menuItemIcon(HomeMenuItem item);
   void displayHome();
   void onFileBrowserOpen();
   void onLibraryOpen();
