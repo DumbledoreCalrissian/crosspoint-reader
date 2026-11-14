@@ -14,7 +14,7 @@
 enum class SettingType { TOGGLE, ENUM, ACTION, VALUE, STRING };
 
 enum class SettingAction {
-  None,
+  None = 0,  // SettingsFocus{} relies on this being zero
   RemapFrontButtons,
   CustomiseStatusBar,
   ClockSettings,
@@ -192,7 +192,7 @@ enum class ControlsGroup : uint8_t { Root, Power, Front, Side, Touch };
 class SettingsActivity final : public UiListActivity {
   const SettingsSection section;
   const ControlsGroup controlsGroup;
-  uint8_t CrossPointSettings::* const focus;  // row selected on entry, if present
+  const SettingsFocus focus;  // row selected on entry, if present
   std::vector<SettingInfo> settings;
 
   bool preserveQuickResumeTimeoutOn = false;
@@ -224,7 +224,7 @@ class SettingsActivity final : public UiListActivity {
 
  public:
   SettingsActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, SettingsSection section,
-                   ControlsGroup controlsGroup = ControlsGroup::Root, uint8_t CrossPointSettings::* focus = nullptr);
+                   ControlsGroup controlsGroup = ControlsGroup::Root, SettingsFocus focus = {});
   void onEnter() override;
   void render(RenderLock&& lock) override;
 };

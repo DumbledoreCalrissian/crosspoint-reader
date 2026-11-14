@@ -9,6 +9,16 @@
 // "no section" where one is optional.
 enum class SettingsSection : uint8_t { General, Display, Reader, Controls, Library, Network, End };
 
+class CrossPointSettings;
+enum class SettingAction;
+
+// Row selected when a section opens from a shortcut: a value setting or an
+// action row. Empty selects the first row.
+struct SettingsFocus {
+  uint8_t CrossPointSettings::* value = nullptr;
+  SettingAction action{};  // None
+};
+
 inline constexpr size_t SETTINGS_SECTION_COUNT = static_cast<size_t>(SettingsSection::End);
 
 inline constexpr StrId SETTINGS_SECTION_TITLES[SETTINGS_SECTION_COUNT] = {

@@ -25,14 +25,17 @@ reset the calendar.
 
 ## Clock and saves
 
-Sync the device clock before using the calendar. The widget is hidden when the
-clock is untrusted or history cannot be read. Reading without a trusted date
+Sync the device clock before using the calendar. When the clock is untrusted,
+the widget explains this; tapping it opens **Settings → System** with **Clock**
+selected. If history cannot be read, the widget says so and asks you to check the
+SD card; that state has no tap action. On devices without a hardware clock, the
+clock messages are text only. Reading without a trusted date
 still counts toward book statistics, but cannot be assigned to a calendar day.
 Large clock corrections and timezone/DST changes during a page stay can exclude
 that stay from daily history; book totals are unaffected. If the local date is
 before the newest recorded day (for example after correcting an accidentally
-advanced clock), the calendar stays hidden and daily tracking pauses until the
-date catches up. Existing history is preserved.
+advanced clock), the widget asks you to check the clock (tapping it opens
+**Settings → System** with **Clock** selected) and daily tracking pauses until the date catches up. Existing history is preserved.
 
 Daily history and the chosen goal are saved together on the SD card in
 `/.crosspoint/reading-calendar-a.bin` and `reading-calendar-b.bin`. Keep both when

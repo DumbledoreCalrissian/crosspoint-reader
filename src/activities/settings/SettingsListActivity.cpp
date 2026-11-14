@@ -22,7 +22,7 @@ constexpr const freeink::Icon* SECTION_ICONS[SETTINGS_SECTION_COUNT] = {
 }  // namespace
 
 SettingsListActivity::SettingsListActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
-                                           const SettingsSection openSection, uint8_t CrossPointSettings::* const focus)
+                                           const SettingsSection openSection, const SettingsFocus focus)
     : UiListActivity("SettingsList", renderer, mappedInput), pendingSection(openSection), pendingFocus(focus) {}
 
 void SettingsListActivity::onEnter() {
@@ -40,7 +40,7 @@ void SettingsListActivity::loop() {
     const SettingsSection section = pendingSection;
     pendingSection = SettingsSection::End;
     const auto focus = pendingFocus;
-    pendingFocus = nullptr;
+    pendingFocus = {};
     openSection(section, focus);
     return;
   }
@@ -87,7 +87,7 @@ void SettingsListActivity::activateIndex(const int index) {
   openSection(static_cast<SettingsSection>(index));
 }
 
-void SettingsListActivity::openSection(const SettingsSection section, uint8_t CrossPointSettings::* const focus) {
+void SettingsListActivity::openSection(const SettingsSection section, const SettingsFocus focus) {
   nav.selected = static_cast<int>(section);
   auto activity = makeUniqueNoThrow<SettingsActivity>(renderer, mappedInput, section, ControlsGroup::Root, focus);
   if (!activity) {

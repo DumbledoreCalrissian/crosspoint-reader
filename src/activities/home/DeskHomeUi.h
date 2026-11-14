@@ -57,6 +57,8 @@ class DeskHomeUi final {
   bool weatherTapped() const;
   // Calendar totals and goal row; opens Reader settings, where the goal is edited.
   bool goalTapped() const;
+  // Calendar while the clock is unset or behind the history; opens Clock settings.
+  bool clockTapped() const;
 
   // Drawn after the covers, so the panel lies over them and never enters the
   // cover snapshot.
@@ -76,6 +78,8 @@ class DeskHomeUi final {
   int widgetsRuleY() const;
   int footerActionY() const;
   Rect calendarFooterRect() const;
+  enum class WeatherState : uint8_t { Forecast, Setup, NoForecast, Unavailable };
+  WeatherState weatherState = WeatherState::Unavailable;
   void loadWeather();
   void drawWeather() const;
   weather::Snapshot weatherData;
@@ -84,7 +88,9 @@ class DeskHomeUi final {
   char weatherCondition[84]{};
   void loadCalendar();
   void drawCalendar() const;
-  bool calendarVisible = false;
+  enum class CalendarState : uint8_t { Month, NoClock, ClockBehind, Unavailable };
+  CalendarState calendarState = CalendarState::Unavailable;
+  Rect calendarRect() const;
   char calendarHeading[80]{};
   uint32_t calendarMarks = 0;
   uint64_t calendarMinutes = 0;
@@ -100,6 +106,7 @@ class DeskHomeUi final {
   // Full UTF-8 task plus a possible three-byte ellipsis and terminator.
   char todoTexts[TODO_ROWS][TodoModel::MAX_TEXT_BYTES + 4]{};
   size_t todoCount = 0;
+  bool todoAvailable = false;  // snapshot loaded; false shows "unavailable"
 
   GfxRenderer& renderer;
   MappedInputManager& input;

@@ -306,7 +306,7 @@ void ActivityManager::goToUsbDrive() {
 #endif
 }
 
-void ActivityManager::goToSettings(const SettingsSection openSection, uint8_t CrossPointSettings::* const focus) {
+void ActivityManager::goToSettings(const SettingsSection openSection, const SettingsFocus focus) {
   replaceActivity(std::make_unique<SettingsListActivity>(renderer, mappedInput, openSection, focus));
 }
 

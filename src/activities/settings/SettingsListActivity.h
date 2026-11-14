@@ -5,8 +5,6 @@
 #include "SettingsSection.h"
 #include "activities/UiListActivity.h"
 
-class CrossPointSettings;
-
 // Settings root: one row per SettingsSection, each opening a
 // SettingsActivity with that group's settings.
 class SettingsListActivity final : public UiListActivity {
@@ -14,12 +12,12 @@ class SettingsListActivity final : public UiListActivity {
   // Network after the Wi-Fi rows' silent restart.
   SettingsSection pendingSection;
   // Row selected in pendingSection; cleared once that section opens.
-  uint8_t CrossPointSettings::* pendingFocus;
+  SettingsFocus pendingFocus;
 
   std::array<freeink::ui::ListItem, SETTINGS_SECTION_COUNT> rowItems_{};
 
   void rebuildRows();
-  void openSection(SettingsSection section, uint8_t CrossPointSettings::* focus = nullptr);
+  void openSection(SettingsSection section, SettingsFocus focus = {});
 
   int listCount() const override { return static_cast<int>(SETTINGS_SECTION_COUNT); }
   void buildScreen(UiScreen& screen) override;
@@ -29,8 +27,7 @@ class SettingsListActivity final : public UiListActivity {
 
  public:
   explicit SettingsListActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
-                                SettingsSection openSection = SettingsSection::End,
-                                uint8_t CrossPointSettings::* focus = nullptr);
+                                SettingsSection openSection = SettingsSection::End, SettingsFocus focus = {});
   void onEnter() override;
   void onExit() override;
   void loop() override;

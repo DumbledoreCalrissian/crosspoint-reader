@@ -25,6 +25,7 @@
 #include "OpdsServerStore.h"
 #include "RecentBooksStore.h"
 #include "activities/pomodoro/PomodoroActivity.h"
+#include "activities/settings/SettingsActivity.h"
 #include "activities/sudoku/SudokuActivity.h"
 #include "activities/todo/TodoActivity.h"
 #include "activities/weather/WeatherActivity.h"
@@ -540,7 +541,12 @@ void HomeActivity::loop() {
     }
     if (deskUi->goalTapped()) {
       haptic_feedback::touchAction();
-      activityManager.goToSettings(SettingsSection::Reader, &CrossPointSettings::dailyReadingGoal);
+      activityManager.goToSettings(SettingsSection::Reader, {&CrossPointSettings::dailyReadingGoal});
+      return;
+    }
+    if (deskUi->clockTapped()) {
+      haptic_feedback::touchAction();
+      activityManager.goToSettings(SettingsSection::General, {nullptr, SettingAction::ClockSettings});
       return;
     }
     if (deskUi->todoTapped()) {

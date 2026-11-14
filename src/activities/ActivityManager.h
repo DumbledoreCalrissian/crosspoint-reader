@@ -17,7 +17,6 @@
 
 class Activity;    // forward declaration
 class RenderLock;  // forward declaration
-class CrossPointSettings;
 
 enum class HomeMenuItem {
   NONE,
@@ -102,7 +101,7 @@ class ActivityManager {
   void goToUsbDrive();
   // openSection jumps straight into one group (End = the section list);
   // focus selects that setting's row there, if present.
-  void goToSettings(SettingsSection openSection = SettingsSection::End, uint8_t CrossPointSettings::* focus = nullptr);
+  void goToSettings(SettingsSection openSection = SettingsSection::End, SettingsFocus focus = {});
   void goToFileBrowser(std::string path = {});
   void goToLibrary();
   // fromFileTransfer: Back at the top level returns to the File Transfer page.

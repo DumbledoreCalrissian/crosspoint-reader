@@ -2,8 +2,9 @@
 
 Open **Apps → Weather** on Desk Home. Choose **Change location**, enter a city,
 connect to Wi-Fi, then select the matching city and region. Choose **Refresh** to
-fetch its forecast. No city is preselected. Once a forecast is saved, tapping the
-Desk weather widget opens this screen.
+fetch its forecast. No city is preselected. Tapping the Desk weather widget opens
+this screen. When no forecast is shown, the widget says whether to choose a city,
+refresh, or check the SD card; Home never fetches weather itself.
 
 The Desk widget shows temperature with its unit, condition, humidity and daily
 precipitation probabilities. Precipitation amounts appear only on the Weather

@@ -1,6 +1,7 @@
 #include "DeskHomeUi.h"
 
 #include <GfxRenderer.h>
+#include <HalClock.h>
 #include <I18n.h>
 #include <Logging.h>
 #include <Memory.h>
@@ -59,6 +60,16 @@ void drawChevron(const GfxRenderer& renderer, const Rect rect, const int y, cons
   for (int i = 0; i < 2; ++i) {
     renderer.drawLine(x - i, top, x + 5 - i, top + 5, true);
     renderer.drawLine(x + 5 - i, top + 5, x - i, top + 10, true);
+  }
+}
+// A state title and up to two lines of explanation under a widget's rule.
+void drawWidgetMessage(const GfxRenderer& renderer, const Rect rect, int y, const char* title, const char* detail) {
+  const auto heading = renderer.truncatedText(UI_10_FONT_ID, title, rect.width, EpdFontFamily::BOLD);
+  renderer.drawText(UI_10_FONT_ID, rect.x, y, heading.c_str(), true, EpdFontFamily::BOLD);
+  y += renderer.getLineHeight(UI_10_FONT_ID) + 2;
+  for (const auto& line : renderer.wrappedText(SMALL_FONT_ID, detail, rect.width, 2)) {
+    renderer.drawText(SMALL_FONT_ID, rect.x, y, line.c_str(), true);
+    y += renderer.getLineHeight(SMALL_FONT_ID);
   }
 }
 void drawWidgetChevron(const GfxRenderer& renderer, const Rect rect) {
@@ -205,6 +216,7 @@ Rect DeskHomeUi::todoRect() const {
 
 void DeskHomeUi::loadTodo() {
   todoCount = 0;
+  todoAvailable = false;
   auto store = makeUniqueNoThrow<TodoStore>();
   if (!store) {
     LOG_ERR("HOME", "OOM: Todo snapshot (%u bytes)", static_cast<unsigned>(sizeof(TodoStore)));
@@ -212,9 +224,10 @@ void DeskHomeUi::loadTodo() {
   }
   // load() only reads snapshots; Todo owns edits and persistence.
   if (store->load() != TodoStore::Status::Ok) {
-    LOG_ERR("HOME", "Todo snapshot load failed; widget hidden");
+    LOG_ERR("HOME", "Todo snapshot load failed");
     return;
   }
+  todoAvailable = true;
   const int textWidth = todoRect().width - TODO_TEXT_INSET;
   for (size_t i = 0; i < store->model().size() && todoCount < TODO_ROWS; ++i) {
     const auto& task = *store->model().at(i);
@@ -226,7 +239,6 @@ void DeskHomeUi::loadTodo() {
 }
 
 bool DeskHomeUi::todoTapped() const {
-  if (!todoCount) return false;
   const auto rect = todoRect();
   int row = -1;
   return input.rowTouch(row, rect.y, rect.height, 1, rect.x, rect.x + rect.width, rect.height) ==
@@ -234,7 +246,6 @@ bool DeskHomeUi::todoTapped() const {
 }
 
 void DeskHomeUi::drawTodo() const {
-  if (!todoCount) return;
   const auto rect = todoRect();
   const int lineH = renderer.getLineHeight(SMALL_FONT_ID);
   const int rowH = std::max(lineH, TODO_ROW_MIN_HEIGHT);
@@ -246,6 +257,10 @@ void DeskHomeUi::drawTodo() const {
     const int y = ruleY + 1 + TODO_GAP + static_cast<int>(i) * rowH;
     renderer.fillRoundedRect(rect.x + 3, y + (rowH - 5) / 2, 5, 5, 2, Color::Black);
     renderer.drawText(SMALL_FONT_ID, rect.x + TODO_TEXT_INSET, y + (rowH - lineH) / 2, todoTexts[i], true);
+  }
+  if (!todoCount) {
+    const char* text = todoAvailable ? tr(STR_TODO_NONE) : tr(STR_TODO_UNAVAILABLE);
+    renderer.drawText(SMALL_FONT_ID, rect.x, ruleY + 1 + TODO_GAP + (rowH - lineH) / 2, text, true);
   }
 }
 
@@ -481,10 +496,11 @@ void DeskHomeUi::drawBooks(const int selectorIndex) {
 }
 
 void DeskHomeUi::loadCalendar() {
-  calendarVisible = false;
+  calendarState = CalendarState::NoClock;
   tm date{};
   const auto local = readingcalendar::localMilliseconds(&date);
   if (!local) return;
+  calendarState = CalendarState::Unavailable;
   auto ledger = makeUniqueNoThrow<readingcalendar::Store>();
   if (!ledger) {
     LOG_ERR("HOME", "OOM: calendar (%u bytes)", unsigned(sizeof(readingcalendar::Store)));
@@ -492,7 +508,11 @@ void DeskHomeUi::loadCalendar() {
   }
   ledger->load();
   const auto today = int32_t(local / readingcalendar::Model::MAX_DAY_MS);
-  if (!ledger->canSave() || today < ledger->model().latestDay()) return;
+  if (!ledger->canSave()) return;
+  if (today < ledger->model().latestDay()) {
+    calendarState = CalendarState::ClockBehind;
+    return;
+  }
   // Only the temporary display model changes here. Home never saves a ledger.
   ledger->model().changeGoal(today, readingcalendar::GOALS[ledger->goalIndex()]);
   const int year = date.tm_year + 1900;
@@ -517,11 +537,40 @@ void DeskHomeUi::loadCalendar() {
   const auto heading =
       renderer.truncatedText(UI_10_FONT_ID, calendarHeading, layout.stripX - layout.current.x, EpdFontFamily::BOLD);
   snprintf(calendarHeading, sizeof(calendarHeading), "%s", heading.c_str());
-  calendarVisible = true;
+  calendarState = CalendarState::Month;
+}
+
+Rect DeskHomeUi::calendarRect() const {
+  const auto weather = weatherRect();
+  return Rect{bookLayout(renderer).current.x, weather.y, weather.width, weather.height};
 }
 
 void DeskHomeUi::drawCalendar() const {
-  if (!calendarVisible) return;
+  if (calendarState != CalendarState::Month) {
+    const auto r = calendarRect();
+    const int line = renderer.getLineHeight(SMALL_FONT_ID);
+    renderer.drawText(UI_10_FONT_ID, r.x, r.y, tr(STR_CAL_TITLE), true, EpdFontFamily::BOLD);
+    const int ruleY = r.y + renderer.getLineHeight(UI_10_FONT_ID) + 4;
+    renderer.drawLine(r.x, ruleY, r.x + r.width - 1, ruleY, true);
+    // Clock settings exist only where the RTC probe found hardware.
+    const bool clock = calendarState != CalendarState::Unavailable && halClock.isAvailable();
+    drawWidgetMessage(renderer, r, ruleY + 10,
+                      calendarState == CalendarState::NoClock       ? tr(STR_CAL_NO_CLOCK)
+                      : calendarState == CalendarState::ClockBehind ? tr(STR_CAL_CLOCK_BEHIND)
+                                                                    : tr(STR_CAL_UNAVAILABLE),
+                      calendarState == CalendarState::NoClock       ? tr(STR_CAL_NO_CLOCK_HINT)
+                      : calendarState == CalendarState::ClockBehind ? tr(STR_CAL_CLOCK_BEHIND_HINT)
+                                                                    : tr(STR_CAL_UNAVAILABLE_HINT));
+    const int footerY = widgetsRuleY();
+    renderer.drawLine(r.x, footerY, r.x + r.width - 1, footerY, true);
+    if (clock) {
+      const int actionY = footerActionY();
+      const auto link = renderer.truncatedText(SMALL_FONT_ID, tr(STR_CAL_CLOCK_LINK), r.width - CHEVRON_RESERVE);
+      renderer.drawText(SMALL_FONT_ID, r.x, actionY, link.c_str(), true);
+      drawChevron(renderer, r, actionY, line);
+    }
+    return;
+  }
   const auto layout = bookLayout(renderer);
   const int x = layout.current.x;
   const int width =
@@ -577,8 +626,17 @@ Rect DeskHomeUi::calendarFooterRect() const {
   return Rect{bookLayout(renderer).current.x, top, weather.width, std::max(MIN_TOUCH, bottom - top)};
 }
 
+bool DeskHomeUi::clockTapped() const {
+  if (calendarState != CalendarState::NoClock && calendarState != CalendarState::ClockBehind) return false;
+  if (!halClock.isAvailable()) return false;
+  const auto r = calendarRect();
+  const int height = footerActionY() + renderer.getLineHeight(SMALL_FONT_ID) - r.y;
+  int row = -1;
+  return input.rowTouch(row, r.y, height, 1, r.x, r.x + r.width, height) == MappedInputManager::RowTouch::Tap;
+}
+
 bool DeskHomeUi::goalTapped() const {
-  if (!calendarVisible) return false;
+  if (calendarState != CalendarState::Month) return false;
   const auto area = calendarFooterRect();
   int row = -1;
   return input.rowTouch(row, area.y, area.height, 1, area.x, area.x + area.width, area.height) ==
@@ -607,32 +665,62 @@ int DeskHomeUi::widgetsRuleY() const {
 }
 void DeskHomeUi::loadWeather() {
   weatherData.cached = false;
+  weatherState = WeatherState::Unavailable;
+  snprintf(weatherTitle, sizeof(weatherTitle), "%s", tr(STR_WEATHER));
   auto store = makeUniqueNoThrow<weather::Store>();
   if (!store) {
     LOG_ERR("HOME", "OOM: weather cache (%u bytes)", unsigned(sizeof(weather::Store)));
     return;
   }
   store->load();
-  if (!store->available() || !store->model().cached) return;
+  if (!store->available()) return;
   weatherData = store->model();
-  weatherNow = std::max<int64_t>(0, trustedtime::trustedNow());
+  if (!weatherData.configured) {
+    weatherState = WeatherState::Setup;
+    return;
+  }
   const auto label = renderer.truncatedText(UI_10_FONT_ID, weatherData.location.name,
                                             weatherRect().width - CHEVRON_RESERVE, EpdFontFamily::BOLD);
   snprintf(weatherTitle, sizeof(weatherTitle), "%s", label.c_str());
+  if (!weatherData.cached) {
+    weatherState = WeatherState::NoForecast;
+    return;
+  }
+  weatherState = WeatherState::Forecast;
+  weatherNow = std::max<int64_t>(0, trustedtime::trustedNow());
   const auto condition =
       renderer.truncatedText(SMALL_FONT_ID, weatherui::condition(weatherData.forecast.code), weatherRect().width - 60);
   snprintf(weatherCondition, sizeof(weatherCondition), "%s", condition.c_str());
 }
 bool DeskHomeUi::weatherTapped() const {
-  if (!weatherData.cached) return false;
   const auto area = weatherRect();
   int row = -1;
   return input.rowTouch(row, area.y, area.height, 1, area.x, area.x + area.width, area.height) ==
          MappedInputManager::RowTouch::Tap;
 }
 void DeskHomeUi::drawWeather() const {
-  if (!weatherData.cached) return;
   const auto r = weatherRect();
+  if (weatherState != WeatherState::Forecast) {
+    const int small = renderer.getLineHeight(SMALL_FONT_ID);
+    renderer.drawText(UI_10_FONT_ID, r.x, r.y, weatherTitle, true, EpdFontFamily::BOLD);
+    drawWidgetChevron(renderer, r);
+    const int ruleY = r.y + renderer.getLineHeight(UI_10_FONT_ID) + 4;
+    renderer.drawLine(r.x, ruleY, r.x + r.width - 1, ruleY, true);
+    drawWidgetMessage(renderer, r, ruleY + 10,
+                      weatherState == WeatherState::Setup        ? tr(STR_WEATHER_SETUP)
+                      : weatherState == WeatherState::NoForecast ? tr(STR_WEATHER_NO_FORECAST)
+                                                                 : tr(STR_WEATHER_UNAVAILABLE),
+                      weatherState == WeatherState::Setup        ? tr(STR_WEATHER_SETUP_HINT)
+                      : weatherState == WeatherState::NoForecast ? tr(STR_WEATHER_NO_FORECAST_HINT)
+                                                                 : tr(STR_WEATHER_UNAVAILABLE_HINT));
+    const int footerY = widgetsRuleY();
+    renderer.drawLine(r.x, footerY, r.x + r.width - 1, footerY, true);
+    const int actionY = footerActionY();
+    const auto open = renderer.truncatedText(SMALL_FONT_ID, tr(STR_WEATHER_OPEN), r.width - CHEVRON_RESERVE);
+    renderer.drawText(SMALL_FONT_ID, r.x, actionY, open.c_str(), true);
+    drawChevron(renderer, r, actionY, small);
+    return;
+  }
   const auto& f = weatherData.forecast;
   const int small = renderer.getLineHeight(SMALL_FONT_ID), heading = renderer.getLineHeight(UI_10_FONT_ID);
   int y = r.y;
