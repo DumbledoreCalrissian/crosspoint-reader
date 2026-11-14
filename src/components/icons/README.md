@@ -34,3 +34,15 @@ rsvg-convert -w 32 -h 32 freeink-sdk/libs/assets/Icons/lucide/icons/grid-3x3.svg
 ../.venv/bin/python scripts/convert_icon.py ../qa-artifacts/sudoku-icon-source.png sudoku 32 32
 ./bin/clang-format-fix -g
 ```
+
+## Desk reading stats
+
+`clock.h` and `pages.h` use the same licensed Lucide pipeline with `clock.svg`
+and `book-open.svg`, at 24 px for the Desk theme's current-book stats:
+
+```sh
+rsvg-convert -w 24 -h 24 freeink-sdk/libs/assets/Icons/lucide/icons/clock.svg -o ../qa-artifacts/clock-icon-source.png
+../.venv/bin/python scripts/convert_icon.py ../qa-artifacts/clock-icon-source.png clock 24 24
+rsvg-convert -w 24 -h 24 freeink-sdk/libs/assets/Icons/lucide/icons/book-open.svg -o ../qa-artifacts/pages-icon-source.png
+../.venv/bin/python scripts/convert_icon.py ../qa-artifacts/pages-icon-source.png pages 24 24
+```

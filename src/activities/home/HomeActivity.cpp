@@ -201,10 +201,12 @@ void HomeActivity::loadRecentCovers(int coverHeight) {
 
   int progress = 0;
   for (RecentBook& book : recentBooks) {
-    // The cover grid shares one slot size; generating at any other height
-    // would rescale the dithered thumb at draw time and alias badly.
-    const int thumbHeight = coverGridUi ? coverGridUi->thumbHeightFor() : coverHeight;
-    if (coverGridUi) {
+    // The cover grid shares one slot size and Desk has two; generating at any
+    // other height would rescale the dithered thumb at draw time and alias badly.
+    const int thumbHeight = coverGridUi ? coverGridUi->thumbHeightFor()
+                            : deskUi    ? DeskHomeUi::thumbHeightFor(progress)
+                                        : coverHeight;
+    if (coverGridUi || deskUi) {
       loadGridCover(book, thumbHeight, showingLoading, popupRect);
       ++progress;
       if (showingLoading) GUI.fillPopupProgress(renderer, popupRect, progress * 100 / recentBooks.size());
@@ -280,7 +282,9 @@ void HomeActivity::onEnter() {
     if (!coverGridUi) LOG_ERR("HOME", "OOM: cover grid UI; using standard home");
   }
   // Never more books than readingSummaries holds; themes index it per book.
+  static_assert(DeskHomeUi::MAX_BOOKS <= CoverGridHomeUi::MAX_BOOKS, "readingSummaries holds every Desk book");
   loadRecentBooks(coverGridUi ? CoverGridHomeUi::MAX_BOOKS
+                  : deskUi    ? DeskHomeUi::MAX_BOOKS
                               : std::min(metrics.homeRecentBooksCount, static_cast<int>(readingSummaries.size())));
   hasContinueReading = !recentBooks.empty();
   if (coverGridUi) {
@@ -300,7 +304,7 @@ void HomeActivity::onEnter() {
 
   const auto base = static_cast<int>(recentBooks.size());
   if (deskUi) {
-    deskUi->begin(slotItem());
+    deskUi->begin(slotItem(), &recentBooks, readingSummaries.data());
     // Returning from an app focuses the menu button it was opened from.
     selectorIndex = initialMenuItem == HomeMenuItem::NONE ? 0 : base;
   } else {
@@ -455,11 +459,13 @@ void HomeActivity::loop() {
   const auto swipe = mappedInput.wasSwipe();
   if (swipe == MappedInputManager::SwipeDir::Up) {
     selectorIndex = ButtonNavigator::nextIndex(selectorIndex, menuCount);
+    if (deskUi) deskUi->follow(selectorIndex);
     requestUpdate();
     return;
   }
   if (swipe == MappedInputManager::SwipeDir::Down) {
     selectorIndex = ButtonNavigator::previousIndex(selectorIndex, menuCount);
+    if (deskUi) deskUi->follow(selectorIndex);
     requestUpdate();
     return;
   }
@@ -513,6 +519,31 @@ void HomeActivity::loop() {
     return;
   }
 
+  if (deskUi) {
+    deskUi->follow(selectorIndex);
+    if (swipe == MappedInputManager::SwipeDir::Left || swipe == MappedInputManager::SwipeDir::Right) {
+      if (deskUi->pageStrip(swipe == MappedInputManager::SwipeDir::Left, selectorIndex)) requestUpdate();
+      return;
+    }
+    const int menuIndex = static_cast<int>(recentBooks.size());
+    int touchedBook = -1;
+    const auto bookTouch = deskUi->bookTouch(touchedBook);
+    const auto buttonTouch = deskUi->buttonTouch();
+    const int touchedIndex = bookTouch != MappedInputManager::RowTouch::None ? touchedBook : menuIndex;
+    const auto touch = bookTouch != MappedInputManager::RowTouch::None ? bookTouch : buttonTouch;
+    if (touch == MappedInputManager::RowTouch::Down && selectorIndex != touchedIndex) {
+      selectorIndex = touchedIndex;
+      requestUpdate();
+    } else if (touch == MappedInputManager::RowTouch::Tap) {
+      selectorIndex = touchedIndex;
+      haptic_feedback::touchAction();
+      activateSelection();
+      return;
+    }
+    if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) activateSelection();
+    return;
+  }
+
   // Match the rendered cover grid, which lays tiles inside getContentArea()
   // (origin content.x + contentSidePadding, span content.width). Using
   // screen-relative getScreenWidth()/contentSidePadding here offset the touch
@@ -536,22 +567,6 @@ void HomeActivity::loop() {
       haptic_feedback::touchAction();
       activateSelection();
     }
-    return;
-  }
-
-  if (deskUi) {
-    const auto buttonTouch = deskUi->buttonTouch();
-    const int menuIndex = static_cast<int>(recentBooks.size());
-    if (buttonTouch == MappedInputManager::RowTouch::Down && selectorIndex != menuIndex) {
-      selectorIndex = menuIndex;
-      requestUpdate();
-    } else if (buttonTouch == MappedInputManager::RowTouch::Tap) {
-      selectorIndex = menuIndex;
-      haptic_feedback::touchAction();
-      activateSelection();
-      return;
-    }
-    if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) activateSelection();
     return;
   }
 
@@ -630,6 +645,22 @@ void HomeActivity::render(RenderLock&&) {
     firstRenderDone = true;
     return;
   }
+  if (deskUi) {
+    // Missing thumbs are generated before drawing, so Home paints once.
+    if (!recentsLoaded && !recentsLoading) loadRecentCovers(0);
+    renderer.clearScreen();
+    GUI.drawHeader(renderer, Rect{0, metrics.topPadding, pageWidth, metrics.homeTopPadding - metrics.topPadding},
+                   nullptr, nullptr, false);
+    deskUi->drawBooks(selectorIndex);
+    deskUi->draw(selectorIndex == static_cast<int>(recentBooks.size()), !recentBooks.empty());
+    const auto labels =
+        mappedInput.mapLabels(deskUi->backHint(!recentBooks.empty()), tr(STR_SELECT), tr(STR_DIR_UP), tr(STR_DIR_DOWN));
+    GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
+    renderer.displayBuffer(cleanInitialRefresh && !firstRenderDone ? HalDisplay::HALF_REFRESH
+                                                                   : HalDisplay::FAST_REFRESH);
+    firstRenderDone = true;
+    return;
+  }
   // A cover snapshot from the other output polarity holds the other byte form (night mode keeps images pre-inverted so
   // they stay positive): pasting it back after a theme switch showed the cover as a negative. Redraw it instead.
   if (coverBufferStored && coverBufferInverted != display.isInverted()) {
@@ -657,15 +688,6 @@ void HomeActivity::render(RenderLock&&) {
   GUI.drawRecentBookCover(renderer, Rect{content.x, metrics.homeTopPadding, content.width, metrics.homeCoverTileHeight},
                           recentBooks, readingSummaries.data(), selectorIndex, coverRendered, coverBufferStored,
                           bufferRestored, std::bind(&HomeActivity::storeCoverBuffer, this));
-
-  if (deskUi) {
-    deskUi->draw(selectorIndex == static_cast<int>(recentBooks.size()), !recentBooks.empty());
-    const auto labels =
-        mappedInput.mapLabels(deskUi->backHint(!recentBooks.empty()), tr(STR_SELECT), tr(STR_DIR_UP), tr(STR_DIR_DOWN));
-    GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
-    displayHome();
-    return;
-  }
 
   // Build menu items dynamically
   // File Transfer lives in the file browser's root header.

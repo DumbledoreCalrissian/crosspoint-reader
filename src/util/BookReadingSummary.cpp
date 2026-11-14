@@ -24,6 +24,7 @@ BookReadingSummary loadSummary(const std::string& path, readingstats::Store* sto
   if (status == readingstats::Store::Status::Ok || status == readingstats::Store::Status::Recovered) {
     summary.timeKnown = true;
     summary.readingMilliseconds = store->totals().readingMilliseconds;
+    summary.forwardTurns = store->totals().forwardTurns;
   }
   return summary;
 }
@@ -48,4 +49,19 @@ void formatReadingTime(const BookReadingSummary& summary, char* out, size_t size
     snprintf(out, size, tr(STR_STATS_TIME_HOURS), minutes / 60, minutes % 60);
   else
     snprintf(out, size, tr(STR_STATS_TIME_MINUTES), minutes);
+}
+
+void formatShortReadingTime(const BookReadingSummary& summary, char* out, size_t size, const bool hoursOnly) {
+  if (size == 0) return;
+  out[0] = '\0';
+  if (!summary.timeKnown) return;
+  const auto minutes = static_cast<unsigned long long>(summary.readingMilliseconds / 60000);
+  if (minutes == 0)
+    snprintf(out, size, "%s", tr(STR_TIME_SHORT_UNDER_MINUTE));
+  else if (minutes >= 60 && hoursOnly)
+    snprintf(out, size, tr(STR_TIME_SHORT_HOURS_ONLY), minutes / 60);
+  else if (minutes >= 60)
+    snprintf(out, size, tr(STR_TIME_SHORT_HOURS), minutes / 60, minutes % 60);
+  else
+    snprintf(out, size, tr(STR_TIME_SHORT_MINUTES), minutes);
 }

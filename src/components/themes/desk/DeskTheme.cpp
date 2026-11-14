@@ -21,23 +21,6 @@ constexpr int PANEL_PADDING = 10;  // frame to row highlight, equal on all sides
 static_assert(DeskMetrics::values.contentSidePadding == LyraMetrics::values.contentSidePadding);
 }  // namespace
 
-void DeskTheme::drawRecentBookCover(GfxRenderer& renderer, const Rect rect, const std::vector<RecentBook>& recentBooks,
-                                    const BookReadingSummary* readingSummaries, const int selectorIndex,
-                                    bool& coverRendered, bool& coverBufferStored, bool& bufferRestored,
-                                    std::function<bool()> storeCoverBuffer) const {
-  if (!recentBooks.empty()) {
-    Lyra3CoversTheme::drawRecentBookCover(renderer, rect, recentBooks, readingSummaries, selectorIndex, coverRendered,
-                                          coverBufferStored, bufferRestored, std::move(storeCoverBuffer));
-    return;
-  }
-  // Lyra's empty text points "below", where Desk has no list.
-  constexpr int padding = 48;
-  renderer.drawText(UI_12_FONT_ID, rect.x + padding,
-                    rect.y + rect.height / 2 - renderer.getLineHeight(UI_12_FONT_ID) - 2, tr(STR_NO_OPEN_BOOK), true,
-                    EpdFontFamily::BOLD);
-  renderer.drawText(UI_10_FONT_ID, rect.x + padding, rect.y + rect.height / 2 + 2, tr(STR_DESK_START_READING), true);
-}
-
 Rect DeskTheme::homeMenuButtonRect(const GfxRenderer& renderer) {
   const auto& metrics = DeskMetrics::values;
   const Rect content = UITheme::getContentArea(renderer);

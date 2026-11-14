@@ -14,14 +14,10 @@ constexpr ThemeMetrics values = [] {
 }();
 }  // namespace DeskMetrics
 
-// Desk: Lyra Extended's three-cover row with the apps moved behind a menu
-// button at the top right of Home. Other screens keep Lyra styling.
+// Desk: Home drawn by DeskHomeUi, with the apps behind a menu button at the
+// top right. Other screens keep Lyra styling.
 class DeskTheme : public Lyra3CoversTheme {
  public:
-  void drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std::vector<RecentBook>& recentBooks,
-                           const BookReadingSummary* readingSummaries, int selectorIndex, bool& coverRendered,
-                           bool& coverBufferStored, bool& bufferRestored,
-                           std::function<bool()> storeCoverBuffer) const override;
   // Square hit/draw area for the Home menu button, right of the header band.
   static Rect homeMenuButtonRect(const GfxRenderer& renderer);
   // Draws the "Continue reading" label left of the button when there are books.

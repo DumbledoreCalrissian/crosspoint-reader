@@ -1,6 +1,7 @@
 #include "HomeCoverCache.h"
 
 #include <GfxRenderer.h>
+#include <HalDisplay.h>
 #include <Logging.h>
 
 #include <algorithm>
@@ -31,9 +32,11 @@ void HomeCoverCache::invalidate(size_t index) {
 
 void HomeCoverCache::prepare() {
   const int orientation = static_cast<int>(renderer.getOrientation());
-  if (coverCacheOrientation != orientation) {
+  const bool inverted = display.isInverted();
+  if (coverCacheOrientation != orientation || coverCacheInverted != inverted) {
     invalidate();
     coverCacheOrientation = orientation;
+    coverCacheInverted = inverted;
   }
 }
 
