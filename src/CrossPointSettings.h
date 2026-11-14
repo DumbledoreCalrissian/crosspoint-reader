@@ -329,6 +329,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t paragraphAlignment = JUSTIFIED;
   // Auto-sleep timeout setting (default 10 minutes). Legacy sleepTimeout enum values are migration-only.
   uint8_t sleepTimeoutMinutes = 10;
+  uint8_t dailyReadingGoal = 4;  // Calendar-owned goal cache; index into readingcalendar::GOALS.
   // Pomodoro phase lengths in minutes and focus sessions before a long break.
   uint8_t pomodoroFocusMinutes = DEFAULT_POMODORO_FOCUS_MINUTES;
   uint8_t pomodoroShortBreakMinutes = DEFAULT_POMODORO_SHORT_BREAK_MINUTES;

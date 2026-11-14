@@ -40,6 +40,8 @@
 #include "components/UiAppHelpers.h"
 #include "fontIds.h"
 #include "util/PluginEvents.h"
+#include "util/ReadingCalendarClock.h"
+#include "util/ReadingCalendarStore.h"
 
 namespace fui = freeink::ui;
 
@@ -110,6 +112,7 @@ constexpr size_t EXTRA_ROWS_PER_SECTION = 6;
 }  // namespace
 
 void SettingsActivity::rebuildSettings() {
+  if (section == SettingsSection::Reader) readingcalendar::loadGoalSetting();
   // Pick up any fonts uploaded/deleted over the web server since the last
   // reader activity ran — otherwise the font-family picker shows stale list.
   sdFontSystem.refreshIfDirty();
@@ -278,6 +281,13 @@ void SettingsActivity::applyUiSettingChange(uint8_t CrossPointSettings::* valueP
 }
 
 bool SettingsActivity::handleCustomInput() {
+  if (goalSaveFailed) {
+    goalSaveFailed = false;
+    const char* options[] = {tr(STR_DONE)};
+    optionPopup.showMessage(tr(STR_DAILY_READING_GOAL), tr(STR_CAL_SAVE_FAILED), options, 1, 0, [](int) {});
+    requestUpdate();
+    return true;
+  }
   return optionPopup.handleInput(mappedInput, [this] { requestUpdate(); });
 }
 
@@ -294,6 +304,37 @@ void SettingsActivity::toggleSelectedSetting() {
 
   if (setting.nameId == StrId::STR_TIME_TO_SLEEP) {
     openSleepTimeoutPicker();
+    return;
+  }
+
+  if (setting.valuePtr == &CrossPointSettings::dailyReadingGoal) {
+    const auto labels = setting.enumLabels();
+    optionPopup.show(setting.nameId, labels.data(), int(labels.size()), SETTINGS.dailyReadingGoal, [this](int index) {
+      if (index < 0 || index >= int(sizeof(readingcalendar::GOALS))) return;
+      bool saved = true;
+      {
+        RenderLock lock(*this);
+        const auto local = readingcalendar::localMilliseconds();
+        auto ledger = makeUniqueNoThrow<readingcalendar::Store>();
+        if (ledger)
+          ledger->load();
+        else
+          LOG_ERR("CAL", "OOM: goal ledger (%u bytes)", unsigned(sizeof(readingcalendar::Store)));
+        saved = ledger && ledger->canSave() && ledger->setGoalIndex(index);
+        if (saved && local)
+          saved = ledger->model().changeGoal(local / readingcalendar::Model::MAX_DAY_MS, readingcalendar::GOALS[index]);
+        if (saved) saved = ledger->save();
+        if (saved)
+          SETTINGS.dailyReadingGoal = index;
+        else {
+          goalSaveFailed = true;
+          LOG_ERR("CAL", "Daily goal save failed; previous setting retained");
+        }
+      }
+      rebuildSettings();
+      requestUpdate();
+    });
+    requestUpdate();
     return;
   }
 

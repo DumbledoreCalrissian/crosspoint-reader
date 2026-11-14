@@ -7,6 +7,7 @@
 #include <Logging.h>
 #include <Memory.h>
 #include <TodoStore.h>
+#include <TrustedTime.h>
 
 #include <algorithm>
 #include <cstdio>
@@ -17,6 +18,7 @@
 #include "MappedInputManager.h"
 #include "RecentBooksStore.h"
 #include "components/UITheme.h"
+#include "components/WeatherPresentation.h"
 #include "components/icons/clock.h"
 #include "components/icons/listIcons.h"
 #include "components/icons/pages.h"
@@ -24,6 +26,9 @@
 #include "fontIds.h"
 #include "util/BookReadingSummary.h"
 #include "util/ButtonNavigator.h"
+#include "util/ReadingCalendarClock.h"
+#include "util/ReadingCalendarStore.h"
+#include "util/WeatherStore.h"
 
 namespace {
 // Book layout below the menu button row (portrait 480 px content width).
@@ -98,8 +103,17 @@ void drawProgress(const GfxRenderer& renderer, const int fontId, const EpdFontFa
   if (filled > 0) renderer.fillRect(barX, barY, filled, barHeight, true);
 }
 
+HomeMenuItem deskMenuItemAt(int index, HomeMenuItem slot) {
+  int count = 0;
+  while (homeMenuItemAt(count, slot) != HomeMenuItem::NONE) ++count;
+  if (index == count) return HomeMenuItem::WEATHER;
+  return homeMenuItemAt(index, slot);
+}
+
 const char* itemLabel(const HomeMenuItem item) {
   switch (item) {
+    case HomeMenuItem::WEATHER:
+      return tr(STR_WEATHER);
     case HomeMenuItem::FILE_BROWSER:
       return tr(STR_BROWSE_FILES);
     case HomeMenuItem::LIBRARY:
@@ -160,6 +174,8 @@ void DeskHomeUi::begin(const HomeMenuItem slotItem, const std::vector<RecentBook
   selected = 0;
   chosenItem = HomeMenuItem::NONE;
   loadTodo();
+  loadCalendar();
+  loadWeather();
 }
 
 Rect DeskHomeUi::todoRect() const {
@@ -221,7 +237,7 @@ void DeskHomeUi::drawTodo() const {
 
 int DeskHomeUi::itemCount() const {
   int count = 0;
-  while (homeMenuItemAt(count, slot) != HomeMenuItem::NONE) ++count;
+  while (deskMenuItemAt(count, slot) != HomeMenuItem::NONE) ++count;
   return count;
 }
 
@@ -245,7 +261,7 @@ DeskHomeUi::Request DeskHomeUi::loopMenu(ButtonNavigator& navigator) {
     request = Request::Redraw;
   };
   const auto choose = [this](const int index) {
-    chosenItem = homeMenuItemAt(index, slot);
+    chosenItem = deskMenuItemAt(index, slot);
     close();
     return Request::Open;
   };
@@ -297,13 +313,15 @@ MappedInputManager::RowTouch DeskHomeUi::buttonTouch() const {
 void DeskHomeUi::draw(const bool buttonSelected, const bool hasBooks) const {
   DeskTheme::drawHomeMenuRow(renderer, DeskTheme::homeMenuButtonRect(renderer), buttonSelected, hasBooks);
   drawTodo();
+  drawCalendar();
+  drawWeather();
   if (!open) return;
   const int count = itemCount();
   const HomeMenuItem slotItem = slot;
   DeskTheme::drawHomeMenuPanel(
       renderer, DeskTheme::homeMenuPanelRect(renderer, count), count, selected,
-      [slotItem](const int i) { return std::string(itemLabel(homeMenuItemAt(i, slotItem))); },
-      [slotItem](const int i) { return itemIcon(homeMenuItemAt(i, slotItem)); });
+      [slotItem](const int i) { return std::string(itemLabel(deskMenuItemAt(i, slotItem))); },
+      [slotItem](const int i) { return itemIcon(deskMenuItemAt(i, slotItem)); });
 }
 
 const char* DeskHomeUi::backHint(const bool hasBooks) const {
@@ -446,4 +464,177 @@ void DeskHomeUi::drawBooks(const int selectorIndex) {
       }
     }
   }
+}
+
+void DeskHomeUi::loadCalendar() {
+  calendarVisible = false;
+  tm date{};
+  const auto local = readingcalendar::localMilliseconds(&date);
+  if (!local) return;
+  auto ledger = makeUniqueNoThrow<readingcalendar::Store>();
+  if (!ledger) {
+    LOG_ERR("HOME", "OOM: calendar (%u bytes)", unsigned(sizeof(readingcalendar::Store)));
+    return;
+  }
+  ledger->load();
+  const auto today = int32_t(local / readingcalendar::Model::MAX_DAY_MS);
+  if (!ledger->canSave() || today < ledger->model().latestDay()) return;
+  // Only the temporary display model changes here. Home never saves a ledger.
+  ledger->model().changeGoal(today, readingcalendar::GOALS[ledger->goalIndex()]);
+  const int year = date.tm_year + 1900;
+  const int month = date.tm_mon + 1;
+  const auto first = readingcalendar::civilDay(year, month, 1);
+  const auto next = readingcalendar::civilDay(year + (month == 12), month == 12 ? 1 : month + 1, 1);
+  calendarDays = next - first;
+  calendarToday = date.tm_mday;
+  calendarFirstWeekday = (first + 3) % 7;
+  calendarMarks = 0;
+  for (int day = 1; day <= calendarDays; ++day) {
+    if (ledger->model().achieved(first + day - 1)) calendarMarks |= uint32_t(1) << (day - 1);
+  }
+  calendarMinutes = ledger->model().minutes(first, next - 1);
+  calendarStreak = ledger->model().streak(today);
+  static constexpr StrId MONTHS[] = {StrId::STR_CAL_JAN, StrId::STR_CAL_FEB, StrId::STR_CAL_MAR, StrId::STR_CAL_APR,
+                                     StrId::STR_CAL_MAY, StrId::STR_CAL_JUN, StrId::STR_CAL_JUL, StrId::STR_CAL_AUG,
+                                     StrId::STR_CAL_SEP, StrId::STR_CAL_OCT, StrId::STR_CAL_NOV, StrId::STR_CAL_DEC};
+  snprintf(calendarHeading, sizeof(calendarHeading), tr(STR_CAL_MONTH_YEAR), I18N.get(MONTHS[date.tm_mon]), year);
+  const auto layout = bookLayout(renderer);
+  const auto heading =
+      renderer.truncatedText(UI_10_FONT_ID, calendarHeading, layout.stripX - layout.current.x, EpdFontFamily::BOLD);
+  snprintf(calendarHeading, sizeof(calendarHeading), "%s", heading.c_str());
+  calendarVisible = true;
+}
+
+void DeskHomeUi::drawCalendar() const {
+  if (!calendarVisible) return;
+  const auto layout = bookLayout(renderer);
+  const int x = layout.current.x;
+  const int width =
+      (UITheme::getContentArea(renderer).width - 2 * DeskMetrics::values.contentSidePadding - SMALL_GAP) / 2;
+  const int y = weatherRect().y;
+  const int line = renderer.getLineHeight(SMALL_FONT_ID);
+  const int headingH = renderer.getLineHeight(UI_10_FONT_ID);
+  renderer.drawText(UI_10_FONT_ID, x, y, calendarHeading, true, EpdFontFamily::BOLD);
+  const int ruleY = y + headingH + 4;
+  renderer.drawLine(x, ruleY, x + width - 1, ruleY, true);
+  const int cell = width / 7;
+  static constexpr StrId WEEK[] = {StrId::STR_CAL_MON, StrId::STR_CAL_TUE, StrId::STR_CAL_WED, StrId::STR_CAL_THU,
+                                   StrId::STR_CAL_FRI, StrId::STR_CAL_SAT, StrId::STR_CAL_SUN};
+  for (int col = 0; col < 7; ++col) {
+    const auto text = I18N.get(WEEK[col]);
+    renderer.drawText(SMALL_FONT_ID, x + col * cell + (cell - renderer.getTextWidth(SMALL_FONT_ID, text)) / 2,
+                      ruleY + 4, text, true);
+  }
+  const int gridY = ruleY + 4 + line + 4;
+  const int rowH = std::max(24, line + 4);
+  for (int day = 1; day <= calendarDays; ++day) {
+    const int pos = calendarFirstWeekday + day - 1;
+    const int cx = x + (pos % 7) * cell;
+    const int cy = gridY + (pos / 7) * rowH;
+    const bool marked = calendarMarks & (uint32_t(1) << (day - 1));
+    if (marked) renderer.fillRoundedRect(cx + 2, cy, cell - 4, rowH - 2, (rowH - 2) / 2, Color::Black);
+    if (day == calendarToday) renderer.drawRect(cx, cy - 1, cell, rowH, true);
+    char number[4];
+    snprintf(number, sizeof(number), "%d", day);
+    renderer.drawText(SMALL_FONT_ID, cx + (cell - renderer.getTextWidth(SMALL_FONT_ID, number)) / 2,
+                      cy + (rowH - line) / 2, number, !marked);
+  }
+  const int footerY = widgetsRuleY();
+  renderer.drawLine(x, footerY, x + width - 1, footerY, true);
+  char value[40];
+  snprintf(value, sizeof(value), tr(STR_CAL_MINUTES), static_cast<unsigned long long>(calendarMinutes));
+  renderer.drawText(UI_10_FONT_ID, x, footerY + 8, value, true, EpdFontFamily::BOLD);
+  snprintf(value, sizeof(value), (calendarStreak == 1 ? tr(STR_CAL_DAY) : tr(STR_CAL_DAYS)), unsigned(calendarStreak));
+  renderer.drawText(UI_10_FONT_ID, x + width / 2, footerY + 8, value, true, EpdFontFamily::BOLD);
+  renderer.drawText(SMALL_FONT_ID, x, footerY + 8 + headingH, tr(STR_CAL_THIS_MONTH), true);
+  renderer.drawText(SMALL_FONT_ID, x + width / 2, footerY + 8 + headingH, tr(STR_CAL_STREAK), true);
+}
+
+Rect DeskHomeUi::weatherRect() const {
+  const auto content = UITheme::getContentArea(renderer);
+  const auto todo = todoRect();
+  const int padding = DeskMetrics::values.contentSidePadding;
+  const int width = (content.width - 2 * padding - SMALL_GAP) / 2;
+  const int top = todo.y + todo.height + 24;
+  return Rect{content.x + content.width - padding - width, top, width, renderer.getScreenHeight() - top - 16};
+}
+int DeskHomeUi::widgetsRuleY() const {
+  const int line = renderer.getLineHeight(SMALL_FONT_ID);
+  const int gridY = weatherRect().y + renderer.getLineHeight(UI_10_FONT_ID) + 4 + 4 + line + 4;
+  return gridY + 6 * std::max(24, line + 4) + 6;
+}
+void DeskHomeUi::loadWeather() {
+  weatherData.cached = false;
+  auto store = makeUniqueNoThrow<weather::Store>();
+  if (!store) {
+    LOG_ERR("HOME", "OOM: weather cache (%u bytes)", unsigned(sizeof(weather::Store)));
+    return;
+  }
+  store->load();
+  if (!store->available() || !store->model().cached) return;
+  weatherData = store->model();
+  weatherNow = std::max<int64_t>(0, trustedtime::trustedNow());
+  const auto label =
+      renderer.truncatedText(UI_10_FONT_ID, weatherData.location.name, weatherRect().width, EpdFontFamily::BOLD);
+  snprintf(weatherTitle, sizeof(weatherTitle), "%s", label.c_str());
+}
+bool DeskHomeUi::weatherTapped() const {
+  if (!weatherData.cached) return false;
+  const auto area = weatherRect();
+  int row = -1;
+  return input.rowTouch(row, area.y, area.height, 1, area.x, area.x + area.width, area.height) ==
+         MappedInputManager::RowTouch::Tap;
+}
+void DeskHomeUi::drawWeather() const {
+  if (!weatherData.cached) return;
+  const auto r = weatherRect();
+  const auto& f = weatherData.forecast;
+  const int small = renderer.getLineHeight(SMALL_FONT_ID), heading = renderer.getLineHeight(UI_10_FONT_ID);
+  int y = r.y;
+  char value[96], chance[20];
+  renderer.drawText(UI_10_FONT_ID, r.x, y, weatherTitle, true, EpdFontFamily::BOLD);
+  y += heading + 4;
+  renderer.drawLine(r.x, y, r.x + r.width - 1, y, true);
+  y += 10;
+  renderer.drawIcon(weatherui::icon(f.code, f.isDay), r.x, y, 48);
+  weatherui::temperature(value, sizeof(value), f.temperature, weatherData.fahrenheit, true);
+  renderer.drawText(UI_12_FONT_ID, r.x + 60, y, value, true, EpdFontFamily::BOLD);
+  renderer.drawText(SMALL_FONT_ID, r.x + 60, y + renderer.getLineHeight(UI_12_FONT_ID) + 4,
+                    weatherui::condition(f.code), true);
+  y += 48 + 12;
+  weatherui::percent(chance, sizeof(chance), f.humidity);
+  snprintf(value, sizeof(value), tr(STR_WEATHER_HUMIDITY_VALUE), chance);
+  renderer.drawText(SMALL_FONT_ID, r.x, y, value, true);
+  weatherui::percent(chance, sizeof(chance), f.days[0].chance);
+  snprintf(value, sizeof(value), tr(STR_WEATHER_PRECIP_VALUE), chance);
+  renderer.drawText(SMALL_FONT_ID, r.x + (r.width + SMALL_GAP) / 2, y, value, true);
+  y += small + 8;
+  for (unsigned i = 0; i < weather::DAYS; ++i) {
+    const auto& d = f.days[i];
+    weatherui::day(value, sizeof(value), d.date, f, weatherNow, true);
+    if (renderer.getTextWidth(SMALL_FONT_ID, value) > 54) {
+      unsigned year, month, dom;
+      weather::civilDate(d.date, year, month, dom);
+      snprintf(value, sizeof(value), "%u", dom);
+    }
+    renderer.drawText(SMALL_FONT_ID, r.x, y, value, true);
+    weatherui::percent(chance, sizeof(chance), d.chance);
+    const int chanceW = renderer.getTextWidth(SMALL_FONT_ID, chance);
+    weatherui::range(value, sizeof(value), d, weatherData.fahrenheit);
+    if (renderer.getTextWidth(SMALL_FONT_ID, value) > r.width - 58 - chanceW - 8)
+      snprintf(value, sizeof(value), tr(STR_WEATHER_COMPACT_RANGE),
+               weather::temperature(d.high, weatherData.fahrenheit),
+               weather::temperature(d.low, weatherData.fahrenheit));
+    renderer.drawText(SMALL_FONT_ID, r.x + 58, y, value, true);
+    renderer.drawText(SMALL_FONT_ID, r.x + r.width - chanceW, y, chance, true);
+    y += small + 4;
+  }
+  y = widgetsRuleY();
+  renderer.drawLine(r.x, y, r.x + r.width - 1, y, true);
+  y += 6;
+  weatherui::updated(value, sizeof(value), f);
+  renderer.drawText(SMALL_FONT_ID, r.x, y, value, true);
+  y += small;
+  renderer.drawText(SMALL_FONT_ID, r.x, y,
+                    weatherui::stale(f, weatherNow) ? tr(STR_WEATHER_CACHED_PROVIDER) : tr(STR_WEATHER_PROVIDER), true);
 }

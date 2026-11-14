@@ -46,6 +46,9 @@ class HttpDownloader {
    */
   static int lastStatus();
 
+  // One request without redirects/resume; the caller bounds the body and supplies cancellation.
+  static bool fetchOnce(const std::string& url, const DataCallback& onData, const std::function<bool()>& shouldAbort);
+
   /**
    * True when the last answer came from a different origin (scheme, host or
    * port) than the URL asked for, after a redirect. Credentials are withheld

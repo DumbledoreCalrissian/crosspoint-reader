@@ -68,6 +68,11 @@ void forEachBaseSetting(SettingVisitor visit, void* context) {
                            StrId::STR_CAT_DISPLAY));
 
   // --- Reader ---
+  emit(SettingInfo::Enum(StrId::STR_DAILY_READING_GOAL, &CrossPointSettings::dailyReadingGoal,
+                         {StrId::STR_GOAL_5, StrId::STR_GOAL_10, StrId::STR_GOAL_15, StrId::STR_GOAL_20,
+                          StrId::STR_GOAL_30, StrId::STR_GOAL_45, StrId::STR_GOAL_60},
+                         nullptr, StrId::STR_CAT_READER)
+           .withWebHidden());
   // Built-in font-family entry. Replaced per-call with a registry-aware
   // version when SD fonts are installed.
   emit(SettingInfo::Enum(StrId::STR_FONT_FAMILY, &CrossPointSettings::fontFamily, {StrId::STR_NOTO_SANS}, "fontFamily",

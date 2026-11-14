@@ -52,6 +52,19 @@ bool HalClock::localTime(struct tm& out) const {
   return true;
 }
 
+bool HalClock::localTimeFresh(struct tm& out) const {
+  if (!_available) return false;
+  Rtc::DateTime dt{};
+  if (!_sdkRtc.now(dt) || dt.year < 2020 || dt.year > 2100 || dt.month < 1 || dt.month > 12 || dt.hour > 23 ||
+      dt.minute > 59 || dt.second > 59)
+    return false;
+  static constexpr uint8_t DAYS[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+  const bool leap = dt.year % 4 == 0 && (dt.year % 100 != 0 || dt.year % 400 == 0);
+  if (dt.day < 1 || dt.day > DAYS[dt.month - 1] + (dt.month == 2 && leap)) return false;
+  const auto utc = epochFromUtc(dt);
+  return localtime_r(&utc, &out) != nullptr;
+}
+
 bool HalClock::getTime(uint8_t& hour, uint8_t& minute) const {
   struct tm local;
   if (!localTime(local)) return false;

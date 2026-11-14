@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string_view>
 
+#include "util/ReadingCalendarTracker.h"
 #include "util/ReadingStats.h"
 #include "util/ReadingStatsStore.h"
 
@@ -29,6 +30,9 @@ class EpubReadingStats {
 
  private:
   void save(uint32_t now, bool force);
+  std::unique_ptr<readingcalendar::Tracker> calendar;
+  uint64_t calendarAccounted = 0;
+  void recordCalendar(uint32_t end, uint32_t now, bool force);
   readingstats::Store store;
   readingstats::Collector collector;
   readingstats::Collector beforeNavigation;

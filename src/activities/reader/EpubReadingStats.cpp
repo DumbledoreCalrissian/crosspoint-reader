@@ -1,10 +1,18 @@
 #include "EpubReadingStats.h"
 
 #include <Logging.h>
+#include <Memory.h>
+
+#include "util/ReadingCalendarClock.h"
 
 EpubReadingStats::EpubReadingStats(const std::string_view path, const uint32_t now)
     : loadStatus(store.load(path)), lastCheckpoint(now) {
   if (available()) collector = readingstats::Collector(store.totals());
+  calendarAccounted = collector.totals().readingMilliseconds;
+  if (readingcalendar::localMilliseconds()) {
+    calendar = makeUniqueNoThrow<readingcalendar::Tracker>();
+    if (!calendar) LOG_ERR("CAL", "OOM: reader calendar (%u bytes)", unsigned(sizeof(readingcalendar::Tracker)));
+  }
 }
 
 bool EpubReadingStats::available() const {
@@ -13,8 +21,13 @@ bool EpubReadingStats::available() const {
 
 void EpubReadingStats::pageShown(const uint32_t now, const bool samePage) {
   if (stopped || !available()) return;
-  if (pendingNavigation && samePage) collector = beforeNavigation;
-  completeNavigation(now);
+  if (pendingNavigation && samePage) {
+    collector = beforeNavigation;
+    pendingNavigation = false;
+  } else {
+    completeNavigation(now);
+  }
+  if (calendar && !collector.isTiming()) calendar->pageShown(now);
   collector.pageShown(now);
 }
 
@@ -29,6 +42,7 @@ void EpubReadingStats::beginNavigation(const uint32_t now, const Departure reaso
 void EpubReadingStats::completeNavigation(const uint32_t now) {
   if (!pendingNavigation) return;
   pendingNavigation = false;
+  recordCalendar(navigationAt, now, false);
   save(now, false);
 }
 
@@ -38,6 +52,7 @@ void EpubReadingStats::loading(const uint32_t now) {
 }
 
 void EpubReadingStats::pause(const uint32_t now) {
+  const uint32_t end = pendingNavigation ? navigationAt : now;
   if (pendingNavigation) {
     // The target never became readable; keep departure time without a turn.
     collector = beforeNavigation;
@@ -45,6 +60,7 @@ void EpubReadingStats::pause(const uint32_t now) {
     pendingNavigation = false;
   }
   collector.depart(now, Departure::Pause);
+  recordCalendar(end, now, true);
   save(now, true);
 }
 
@@ -67,10 +83,17 @@ bool EpubReadingStats::reset() {
     LOG_ERR("STATS", "EPUB statistics reset failed");
     return false;
   }
+  calendarAccounted = 0;
   collector = readingstats::Collector{};
   beforeNavigation = readingstats::Collector{};
   pendingNavigation = false;
   loadStatus = Status::Ok;
   failedWrite = false;
   return true;
+}
+
+void EpubReadingStats::recordCalendar(uint32_t end, uint32_t now, bool force) {
+  const auto total = collector.totals().readingMilliseconds;
+  if (calendar) calendar->record(total >= calendarAccounted ? total - calendarAccounted : 0, end, now, force);
+  calendarAccounted = total;
 }

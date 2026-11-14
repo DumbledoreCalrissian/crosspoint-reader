@@ -1,5 +1,9 @@
 add_executable(ReadingStatsTest
   ReadingStatsTest.cpp
+  stubs/CalendarClock.cpp
+  ${REPO_ROOT}/src/util/ReadingCalendar.cpp
+  ${REPO_ROOT}/src/util/ReadingCalendarStore.cpp
+  ${REPO_ROOT}/src/util/ReadingCalendarTracker.cpp
   ${REPO_ROOT}/src/activities/reader/EpubReadingStats.cpp
   ${REPO_ROOT}/src/util/ReadingStats.cpp
   ${REPO_ROOT}/src/util/ReadingStatsStore.cpp

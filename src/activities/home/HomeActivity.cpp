@@ -27,6 +27,7 @@
 #include "activities/pomodoro/PomodoroActivity.h"
 #include "activities/sudoku/SudokuActivity.h"
 #include "activities/todo/TodoActivity.h"
+#include "activities/weather/WeatherActivity.h"
 #include "components/UITheme.h"
 #include "components/UiAppHelpers.h"
 #include "fontIds.h"
@@ -376,6 +377,13 @@ bool HomeActivity::openMenuItem(const HomeMenuItem item) {
     case HomeMenuItem::OPDS_BROWSER:
       onOpdsBrowserOpen();
       break;
+    case HomeMenuItem::WEATHER:
+      if (auto weather = makeUniqueNoThrow<WeatherActivity>(renderer, mappedInput)) {
+        activityManager.replaceActivity(std::move(weather));
+        return true;
+      }
+      LOG_ERR("WEATHER", "OOM: activity (%u bytes)", unsigned(sizeof(WeatherActivity)));
+      return false;
     case HomeMenuItem::TODO:
       if (auto todo = makeUniqueNoThrow<TodoActivity>(renderer, mappedInput)) {
         activityManager.replaceActivity(std::move(todo));
@@ -523,6 +531,11 @@ void HomeActivity::loop() {
     deskUi->follow(selectorIndex);
     if (swipe == MappedInputManager::SwipeDir::Left || swipe == MappedInputManager::SwipeDir::Right) {
       if (deskUi->pageStrip(swipe == MappedInputManager::SwipeDir::Left, selectorIndex)) requestUpdate();
+      return;
+    }
+    if (deskUi->weatherTapped()) {
+      haptic_feedback::touchAction();
+      openMenuItem(HomeMenuItem::WEATHER);
       return;
     }
     if (deskUi->todoTapped()) {

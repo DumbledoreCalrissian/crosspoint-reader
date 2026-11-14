@@ -7,6 +7,7 @@
 #include "MappedInputManager.h"
 #include "activities/ActivityManager.h"
 #include "components/HomeCoverCache.h"
+#include "util/WeatherModel.h"
 
 class ButtonNavigator;
 class GfxRenderer;
@@ -53,6 +54,7 @@ class DeskHomeUi final {
   // Touch on the menu button while the panel is closed.
   MappedInputManager::RowTouch buttonTouch() const;
   bool todoTapped() const;
+  bool weatherTapped() const;
 
   // Drawn after the covers, so the panel lies over them and never enters the
   // cover snapshot.
@@ -68,6 +70,23 @@ class DeskHomeUi final {
   void drawCover(Rect rect, int bookIndex, bool selected);
   void drawCurrentStats(Rect rect) const;
   Rect todoRect() const;
+  Rect weatherRect() const;
+  int widgetsRuleY() const;
+  void loadWeather();
+  void drawWeather() const;
+  weather::Snapshot weatherData;
+  uint64_t weatherNow = 0;
+  char weatherTitle[84]{};
+  void loadCalendar();
+  void drawCalendar() const;
+  bool calendarVisible = false;
+  char calendarHeading[80]{};
+  uint32_t calendarMarks = 0;
+  uint64_t calendarMinutes = 0;
+  uint32_t calendarStreak = 0;
+  uint8_t calendarDays = 0;
+  uint8_t calendarFirstWeekday = 0;
+  uint8_t calendarToday = 0;
   void loadTodo();
   void drawTodo() const;
 

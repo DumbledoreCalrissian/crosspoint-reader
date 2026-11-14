@@ -28,6 +28,10 @@ reading time and pages turned, and the other recent books as a swipeable strip
 of small covers with their titles and progress bars. Its other apps (Browse
 Files, Library, Settings, Todo, Pomodoro, Sudoku and any Plugins or OPDS
 shortcut) open from the menu button at the top right of Home.
+Its [reading calendar](docs/reading-calendar.md) shows monthly minutes and a streak
+of days meeting your adjustable daily reading goal.
+Its [weather widget and screen](docs/weather.md) show a manually refreshed
+three-day forecast, humidity and precipitation for a city you choose.
 
 ## Try the simulator
 

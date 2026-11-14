@@ -33,6 +33,8 @@ class HalClock {
   // Current wall-clock time in the configured timezone.
   // Returns false if RTC is not available.
   bool localTime(struct tm& out) const;
+  // Calendar attribution requires a fresh RTC sample and must not reuse stale time after a read failure.
+  bool localTimeFresh(struct tm& out) const;
 
   // Get current local hour (0-23) and minute (0-59).
   // Returns false if RTC is not available.

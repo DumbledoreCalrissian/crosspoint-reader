@@ -46,3 +46,17 @@ rsvg-convert -w 24 -h 24 freeink-sdk/libs/assets/Icons/lucide/icons/clock.svg -o
 rsvg-convert -w 24 -h 24 freeink-sdk/libs/assets/Icons/lucide/icons/book-open.svg -o ../qa-artifacts/pages-icon-source.png
 ../.venv/bin/python scripts/convert_icon.py ../qa-artifacts/pages-icon-source.png pages 24 24
 ```
+
+## Weather
+
+`weather.h` contains 48 px widget masks and 64 px Weather screen masks from the pinned SDK's Lucide `sun`, `moon`,
+`cloud-sun`, `cloud-moon`, `cloud`, `cloud-fog`, `cloud-rain`, `cloud-snow` and
+`cloud-lightning` SVGs. Regenerate with Homebrew `librsvg` and workspace Pillow:
+
+```sh
+../.venv/bin/python scripts/generate_weather_icons.py
+./bin/clang-format-fix -g
+```
+
+The generator uses the same pre-rotation as the existing native icon converter.
+The original Lucide copyright and licence remain in the SDK path above.

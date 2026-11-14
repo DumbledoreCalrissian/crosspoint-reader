@@ -403,3 +403,28 @@ HttpDownloader::DownloadError HttpDownloader::downloadVerified(const std::string
   }
   return OK;
 }
+
+bool HttpDownloader::fetchOnce(const std::string& url, const DataCallback& onData,
+                               const std::function<bool()>& shouldAbort) {
+  WifiPowerSaveGuard psGuard;
+  freeink::SecureHttpClient http;
+  if (!http.begin(url)) return false;
+  applyCommonClientSetup(http);
+  bool stopped = false;
+  const int status = http.GET(
+      [&](const uint8_t* bytes, size_t count) {
+        if (http.getStatus() != 200) {
+          stopped = true;
+          return false;
+        }
+        if (!onData(bytes, count)) {
+          stopped = true;
+          return false;
+        }
+        return true;
+      },
+      shouldAbort);
+  g_lastStatus = status > 0 ? status : 0;
+  g_lastRedirected = false;
+  return status == 200 && !stopped && http.responseComplete() && !http.aborted();
+}

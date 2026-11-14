@@ -693,3 +693,40 @@ TEST_F(EpubStatistics, LoadingRepaintPausesVisiblePageAndFailedTargetStillHasNoT
   stats.pause(18000);  // error replaces the target instead of a readable page
   EXPECT_EQ(stats.totals(), (Totals{9000, 0}));
 }
+
+extern uint64_t calendarTestLocal;
+extern uint16_t calendarTestGoal;
+TEST_F(EpubStatistics, CalendarRecordsConfirmedBurstsAndSkipsFailedTurns) {
+  calendarTestLocal = uint64_t(20000) * 86400000 + 100000;
+  calendarTestGoal = 30;
+  EpubReadingStats stats(BOOK, 0);
+  stats.pageShown(0);
+  calendarTestLocal += 3000;
+  stats.beginNavigation(3000, Departure::ForwardTurn);
+  stats.pageShown(3000, true);  // rejected turn, same page is still timing
+  calendarTestLocal += 3000;
+  stats.pause(6000);
+  readingcalendar::Store ledger;
+  ASSERT_EQ(ledger.load(), readingcalendar::Store::Status::Ok);
+  ASSERT_NE(ledger.model().find(20000), nullptr);
+  EXPECT_EQ(ledger.model().find(20000)->milliseconds, 6000);
+  EXPECT_FALSE(ledger.model().achieved(20000));
+  calendarTestLocal = 0;
+}
+TEST_F(EpubStatistics, CalendarSplitsMidnightAndIgnoresClockJumps) {
+  calendarTestLocal = uint64_t(20001) * 86400000 - 2000;
+  EpubReadingStats stats(BOOK, 0);
+  stats.pageShown(0);
+  calendarTestLocal += 4000;
+  stats.pause(4000);
+  readingcalendar::Store ledger;
+  ASSERT_EQ(ledger.load(), readingcalendar::Store::Status::Ok);
+  EXPECT_EQ(ledger.model().find(20000)->milliseconds, 2000);
+  EXPECT_EQ(ledger.model().find(20001)->milliseconds, 2000);
+  stats.pageShown(4000);
+  calendarTestLocal += 86400000;
+  stats.pause(8000);
+  ledger.load();
+  EXPECT_EQ(ledger.model().find(20001)->milliseconds, 2000);
+  calendarTestLocal = 0;
+}
