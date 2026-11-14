@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <atomic>
 #include <functional>
 #include <vector>
@@ -45,7 +46,8 @@ class HomeActivity final : public Activity {
   int coverRectW = 0;
   int coverRectH = 0;
   std::vector<RecentBook> recentBooks;
-  BookReadingSummary readingSummary;  // first recent book; read once per visit
+  // One per recentBooks entry; read once per visit.
+  std::array<BookReadingSummary, CoverGridHomeUi::MAX_BOOKS> readingSummaries{};
   const HomeMenuItem initialMenuItem;
   const bool cleanInitialRefresh;
 

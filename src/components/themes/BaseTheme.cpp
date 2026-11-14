@@ -495,7 +495,7 @@ void BaseTheme::drawSubHeader(const GfxRenderer& renderer, Rect rect, const char
 // Draw the "Recent Book" cover card on the home screen
 // TODO: Refactor method to make it cleaner, split into smaller methods
 void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std::vector<RecentBook>& recentBooks,
-                                    const BookReadingSummary& readingSummary, const int selectorIndex,
+                                    const BookReadingSummary* readingSummaries, const int selectorIndex,
                                     bool& coverRendered, bool& coverBufferStored, bool& bufferRestored,
                                     std::function<bool()> storeCoverBuffer) const {
   const bool hasContinueReading = !recentBooks.empty();
@@ -700,7 +700,7 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
 
     // "Continue Reading" label at the bottom
     const int continueY = bookY + bookHeight - renderer.getLineHeight(UI_10_FONT_ID) * 3 / 2;
-    if (const int summaryHeight = readingSummaryHeight(renderer, readingSummary)) {
+    if (const int summaryHeight = readingSummaryHeight(renderer, readingSummaries[0])) {
       constexpr int summaryPadding = 6;
       const int summaryWidth = std::min(bookWidth - 40, 200);
       const Rect summaryRect{rect.x + (rect.width - summaryWidth) / 2, continueY - summaryHeight - summaryPadding * 2,
@@ -711,7 +711,7 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
         renderer.fillRect(box.x, box.y, box.width, box.height, bookSelected);
         renderer.drawRect(box.x, box.y, box.width, box.height, !bookSelected);
       }
-      drawReadingSummary(renderer, summaryRect, readingSummary, true, !bookSelected);
+      drawReadingSummary(renderer, summaryRect, readingSummaries[0], true, !bookSelected);
     }
     if (coverRendered) {
       // Draw box behind "Continue Reading" text (inverted when selected: black box instead of white)

@@ -12,6 +12,7 @@
 #include "components/UITheme.h"
 #include "components/icons/cover.h"
 #include "fontIds.h"
+#include "util/BookReadingSummary.h"
 
 // Internal constants
 namespace {
@@ -27,7 +28,7 @@ int Lyra3CoversTheme::homeCoverThumbHeight(const GfxRenderer& renderer) const {
 }
 
 void Lyra3CoversTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std::vector<RecentBook>& recentBooks,
-                                           const BookReadingSummary& readingSummary, const int selectorIndex,
+                                           const BookReadingSummary* readingSummaries, const int selectorIndex,
                                            bool& coverRendered, bool& coverBufferStored, bool& bufferRestored,
                                            std::function<bool()> storeCoverBuffer) const {
   const int tileWidth = (rect.width - 2 * Lyra3CoversMetrics::values.contentSidePadding) / 3;
@@ -111,8 +112,8 @@ void Lyra3CoversTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, con
                                  Color::LightGray);
       }
 
-      // The current book's line sits on a white strip across the cover's foot.
-      const int summaryHeight = i == 0 ? readingSummaryHeight(renderer, readingSummary) : 0;
+      // Each book's line sits on a white strip across its cover's foot.
+      const int summaryHeight = readingSummaryHeight(renderer, readingSummaries[i]);
       if (summaryHeight) {
         constexpr int summaryPadding = 4;
         const int coverX = tileX + hPaddingInSelection;
@@ -124,7 +125,7 @@ void Lyra3CoversTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, con
         drawReadingSummary(
             renderer,
             Rect{coverX + summaryPadding, stripY + summaryPadding, coverW - summaryPadding * 2, summaryHeight},
-            readingSummary, true);
+            readingSummaries[i], true);
       }
 
       int currentY = tileY + Lyra3CoversMetrics::values.homeCoverHeight + hPaddingInSelection + 5;

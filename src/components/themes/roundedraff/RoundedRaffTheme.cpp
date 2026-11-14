@@ -13,6 +13,7 @@
 #include "components/UITheme.h"
 #include "components/icons/cover.h"
 #include "fontIds.h"
+#include "util/BookReadingSummary.h"
 
 namespace {
 constexpr int kCoverRadius = 18;
@@ -58,7 +59,7 @@ void RoundedRaffTheme::drawHeader(const GfxRenderer& renderer, Rect rect, const 
 }
 
 void RoundedRaffTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std::vector<RecentBook>& recentBooks,
-                                           const BookReadingSummary& readingSummary, const int selectorIndex,
+                                           const BookReadingSummary* readingSummaries, const int selectorIndex,
                                            bool& coverRendered, bool& coverBufferStored, bool& bufferRestored,
                                            std::function<bool()> storeCoverBuffer) const {
   const int tileWidth = rect.width - 2 * RoundedRaffMetrics::values.contentSidePadding;
@@ -133,7 +134,7 @@ void RoundedRaffTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, con
     renderer.fillRoundedRect(tileX, imgY + RoundedRaffMetrics::values.homeCoverHeight, tileWidth,
                              tileHeight - (imgY - tileY + RoundedRaffMetrics::values.homeCoverHeight), kRowRadius,
                              false, false, true, true, Color::LightGray);
-    if (const int summaryHeight = readingSummaryHeight(renderer, readingSummary)) {
+    if (const int summaryHeight = readingSummaryHeight(renderer, readingSummaries[0])) {
       const int coverX = tileX + (tileWidth - coverWidth) / 2;
       const int coverBottom = imgY + RoundedRaffMetrics::values.homeCoverHeight;
       const int band = tileY + tileHeight - coverBottom;
@@ -142,7 +143,7 @@ void RoundedRaffTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, con
       if (band >= summaryHeight + 4) {
         drawReadingSummary(renderer,
                            Rect{summaryX, coverBottom + (band - summaryHeight) / 2, summaryWidth, summaryHeight},
-                           readingSummary, true);
+                           readingSummaries[0], true);
       } else {
         // Too little room under the cover: a white strip across its foot instead.
         constexpr int summaryPadding = 4;
@@ -151,7 +152,7 @@ void RoundedRaffTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, con
         drawReadingSummary(renderer,
                            Rect{coverX + summaryPadding, coverBottom - stripH + summaryPadding,
                                 coverWidth - summaryPadding * 2, summaryHeight},
-                           readingSummary, true);
+                           readingSummaries[0], true);
       }
     }
   } else {

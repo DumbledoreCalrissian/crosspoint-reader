@@ -34,8 +34,10 @@ constexpr int COVER_ROW_EXTRA_HEIGHT = 8;
 CoverGridHomeUi::CoverGridHomeUi(GfxRenderer& renderer)
     : UiAppHost(renderer), coverCache(renderer), renderer(renderer) {}
 
-void CoverGridHomeUi::begin(const std::vector<RecentBook>& recent, const SlotTab slot, bool continuing) {
+void CoverGridHomeUi::begin(const std::vector<RecentBook>& recent, const SlotTab slot, bool continuing,
+                            const BookReadingSummary* readingSummaries) {
   books = &recent;
+  summaries = readingSummaries;
   slotTab = slot;
   hasContinueReading = continuing;
   if (!recent.empty()) coverCache.begin();
@@ -48,9 +50,8 @@ void CoverGridHomeUi::begin(const std::vector<RecentBook>& recent, const SlotTab
   if (hasContinueReading && !books->empty()) {
     const auto& path = books->front().path;
     if (FsHelpers::hasEpubExtension(path)) {
-      const auto summary = loadBookReadingSummary(path);
-      progress = summary.percent;
-      formatReadingTime(summary, timeText, sizeof(timeText));
+      progress = summaries[0].percent;
+      formatReadingTime(summaries[0], timeText, sizeof(timeText));
     } else {
       progress = loadBookProgress(path);
     }
@@ -339,6 +340,18 @@ bool CoverGridHomeUi::paintFramedCover(fui::DrawTarget& target, fui::Rect rect, 
   target.fill(fui::Rect{static_cast<int16_t>(rect.x + SHADOW_OFFSET), rect.bottom(), rect.width, SHADOW_OFFSET}, ink);
   // The false spine draws inside the cover paint (HomeCoverCache), glued to
   // the art's left edge, so it stays aligned whatever each cover's margin is.
-  const bool drawn = index < coverPaths.size() && coverCache.paint(rect, index, coverPaths[index]);
-  return drawn;
+  bool drawn = index < coverPaths.size() && coverCache.paint(rect, index, coverPaths[index]);
+  // Grid thumbs carry their book's saved percentage; the hero card shows its own.
+  if (index == 0 || index >= books->size() || summaries[index].percent < 0) return drawn;
+  if (!drawn) target.fill(rect, fui::Paint::dither(fui::Color::LightGray));  // the grid's own fallback
+  BookReadingSummary percentOnly = summaries[index];
+  percentOnly.timeKnown = false;  // a thumb is too narrow for the time
+  constexpr int pad = 4;
+  const int stripH = BaseTheme::readingSummaryHeight(renderer, percentOnly) + pad * 2;
+  const int stripY = rect.bottom() - stripH;
+  renderer.fillRect(rect.x, stripY, rect.width, stripH, false);
+  renderer.drawRect(rect.x, stripY, rect.width, stripH, true);
+  BaseTheme::drawReadingSummary(renderer, Rect{rect.x + pad, stripY + pad, rect.width - pad * 2, stripH - pad * 2},
+                                percentOnly, true);
+  return true;
 }

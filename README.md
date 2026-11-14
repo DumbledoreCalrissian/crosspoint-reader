@@ -19,8 +19,9 @@ plus:
 
 The EPUB reader menu includes Book statistics: current progress, reading time,
 forward page turns and a confirmed reset that keeps position and bookmarks.
-Library shows each opened EPUB's saved percentage, and Home shows the current
-EPUB's progress and reading time in every theme.
+Library shows each opened EPUB's saved percentage. Home shows the current EPUB's
+progress and reading time in every theme; Lyra Extended shows it on each recent
+cover, and Cover Grid thumbnails show each book's percentage and bar.
 
 ## Try the simulator
 

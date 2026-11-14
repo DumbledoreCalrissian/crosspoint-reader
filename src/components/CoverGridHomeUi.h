@@ -11,6 +11,8 @@
 #include "components/media/book-card.h"
 #include "components/media/cover-grid.h"
 
+struct BookReadingSummary;
+
 class CoverGridHomeUi final : public UiAppHost {
  public:
   static constexpr int THUMB_HEIGHT = 400;
@@ -22,7 +24,9 @@ class CoverGridHomeUi final : public UiAppHost {
   enum class SlotTab : uint8_t { NONE, PLUGINS, OPDS };
 
   explicit CoverGridHomeUi(GfxRenderer& renderer);
-  void begin(const std::vector<RecentBook>& books, SlotTab slotTab, bool hasContinueReading);
+  // summaries: one per books entry, kept by the caller for the visit.
+  void begin(const std::vector<RecentBook>& books, SlotTab slotTab, bool hasContinueReading,
+             const BookReadingSummary* summaries);
   void refreshCoverPaths();
   void setSelection(int selection) { selected = selection; }
   int selectedAction(const MappedInputManager& input);
@@ -49,6 +53,7 @@ class CoverGridHomeUi final : public UiAppHost {
   HomeCoverCache coverCache;
   GfxRenderer& renderer;
   const std::vector<RecentBook>* books = nullptr;
+  const BookReadingSummary* summaries = nullptr;
   std::array<std::string, MAX_BOOKS> coverPaths;
   int thumbHeight = 0;
   bool thumbHeightChanged = false;

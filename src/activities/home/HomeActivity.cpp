@@ -276,19 +276,23 @@ void HomeActivity::onEnter() {
     coverGridUi = makeUniqueNoThrow<CoverGridHomeUi>(renderer);
     if (!coverGridUi) LOG_ERR("HOME", "OOM: cover grid UI; using standard home");
   }
-  loadRecentBooks(coverGridUi ? CoverGridHomeUi::MAX_BOOKS : metrics.homeRecentBooksCount);
+  // Never more books than readingSummaries holds; themes index it per book.
+  loadRecentBooks(coverGridUi ? CoverGridHomeUi::MAX_BOOKS
+                              : std::min(metrics.homeRecentBooksCount, static_cast<int>(readingSummaries.size())));
   hasContinueReading = !recentBooks.empty();
   if (coverGridUi) {
     fillCoverGridFromLibrary();
     resolveGridCoverPaths();
+  }
+  readingSummaries = {};
+  loadBookReadingSummaries(recentBooks, readingSummaries.data(), readingSummaries.size());
+  if (coverGridUi) {
     const HomeMenuItem slot = slotItem();
     coverGridUi->begin(recentBooks,
                        slot == HomeMenuItem::PLUGINS        ? CoverGridHomeUi::SlotTab::PLUGINS
                        : slot == HomeMenuItem::OPDS_BROWSER ? CoverGridHomeUi::SlotTab::OPDS
                                                             : CoverGridHomeUi::SlotTab::NONE,
-                       hasContinueReading);
-  } else {
-    readingSummary = hasContinueReading ? loadBookReadingSummary(recentBooks.front().path) : BookReadingSummary{};
+                       hasContinueReading, readingSummaries.data());
   }
 
   const auto base = static_cast<int>(recentBooks.size());
@@ -597,8 +601,8 @@ void HomeActivity::render(RenderLock&&) {
   coverRectH = metrics.homeCoverTileHeight;
 
   GUI.drawRecentBookCover(renderer, Rect{content.x, metrics.homeTopPadding, content.width, metrics.homeCoverTileHeight},
-                          recentBooks, readingSummary, selectorIndex, coverRendered, coverBufferStored, bufferRestored,
-                          std::bind(&HomeActivity::storeCoverBuffer, this));
+                          recentBooks, readingSummaries.data(), selectorIndex, coverRendered, coverBufferStored,
+                          bufferRestored, std::bind(&HomeActivity::storeCoverBuffer, this));
 
   // Build menu items dynamically
   // File Transfer lives in the file browser's root header.

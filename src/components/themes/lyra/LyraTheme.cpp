@@ -28,6 +28,7 @@
 #include "components/icons/transfer.h"
 #include "components/icons/wifi.h"
 #include "fontIds.h"
+#include "util/BookReadingSummary.h"
 
 // Internal constants
 namespace {
@@ -215,7 +216,7 @@ void LyraTheme::drawSideButtonHints(const GfxRenderer& renderer, const char* top
 }
 
 void LyraTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std::vector<RecentBook>& recentBooks,
-                                    const BookReadingSummary& readingSummary, const int selectorIndex,
+                                    const BookReadingSummary* readingSummaries, const int selectorIndex,
                                     bool& coverRendered, bool& coverBufferStored, bool& bufferRestored,
                                     std::function<bool()> storeCoverBuffer) const {
   const int tileWidth = rect.width - 2 * LyraMetrics::values.contentSidePadding;
@@ -295,7 +296,7 @@ void LyraTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
     const int titleLineHeight = renderer.getLineHeight(UI_12_FONT_ID);
     const int titleBlockHeight = titleLineHeight * static_cast<int>(titleLines.size());
     const int authorHeight = book.author.empty() ? 0 : (renderer.getLineHeight(UI_10_FONT_ID) * 3 / 2);
-    const int summaryHeight = readingSummaryHeight(renderer, readingSummary);
+    const int summaryHeight = readingSummaryHeight(renderer, readingSummaries[0]);
     const int summaryGap = summaryHeight ? renderer.getLineHeight(UI_10_FONT_ID) / 2 : 0;
     const int totalBlockHeight = titleBlockHeight + authorHeight + summaryGap + summaryHeight;
     int titleY = tileY + tileHeight / 2 - totalBlockHeight / 2;
@@ -311,7 +312,7 @@ void LyraTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
     }
     if (summaryHeight) {
       drawReadingSummary(renderer, Rect{textX, titleY + summaryGap, std::min(textWidth, 200), summaryHeight},
-                         readingSummary, false);
+                         readingSummaries[0], false);
     }
   } else {
     drawEmptyRecents(renderer, rect);

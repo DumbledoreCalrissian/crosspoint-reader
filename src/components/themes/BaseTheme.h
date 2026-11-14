@@ -284,8 +284,9 @@ class BaseTheme {
   static int headerStatusInset();
   virtual void drawSubHeader(const GfxRenderer& renderer, Rect rect, const char* label,
                              const char* rightLabel = nullptr) const;
+  // readingSummaries holds one entry per recentBooks entry (at least one).
   virtual void drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std::vector<RecentBook>& recentBooks,
-                                   const BookReadingSummary& readingSummary, const int selectorIndex,
+                                   const BookReadingSummary* readingSummaries, const int selectorIndex,
                                    bool& coverRendered, bool& coverBufferStored, bool& bufferRestored,
                                    std::function<bool()> storeCoverBuffer) const;
   virtual void drawButtonMenu(GfxRenderer& renderer, Rect rect, int buttonCount, int selectedIndex,
