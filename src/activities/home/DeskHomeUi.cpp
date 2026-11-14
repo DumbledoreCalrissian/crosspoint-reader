@@ -1,7 +1,12 @@
 #include "DeskHomeUi.h"
 
+#include <FreeInkUIGfxRenderer.h>
+#include <FreeInkUIIcon.h>
 #include <GfxRenderer.h>
 #include <I18n.h>
+#include <Logging.h>
+#include <Memory.h>
+#include <TodoStore.h>
 
 #include <algorithm>
 #include <cstdio>
@@ -13,6 +18,7 @@
 #include "RecentBooksStore.h"
 #include "components/UITheme.h"
 #include "components/icons/clock.h"
+#include "components/icons/listIcons.h"
 #include "components/icons/pages.h"
 #include "components/themes/desk/DeskTheme.h"
 #include "fontIds.h"
@@ -36,6 +42,8 @@ constexpr int STAT_ICON = 24;
 constexpr int ICON_GAP = 4;
 constexpr int STAT_MIN_GAP = 8;  // between the time and the pages-turned group
 constexpr int DOT_SIZE = 8;
+constexpr int TODO_ICON = 24;
+constexpr int TODO_GAP = 4;
 
 struct BookLayout {
   Rect current;
@@ -57,6 +65,10 @@ BookLayout bookLayout(const GfxRenderer& renderer) {
 
 Rect smallRect(const BookLayout& layout, const int slot) {
   return Rect{layout.stripX + slot * (layout.smallW + SMALL_GAP), layout.top, layout.smallW, SMALL_H};
+}
+
+int stripBarY(const GfxRenderer& renderer, const BookLayout& layout) {
+  return layout.top + SMALL_H + TEXT_GAP + 2 * renderer.getLineHeight(SMALL_FONT_ID) + 4;
 }
 
 // Left-aligned, wrapped and ellipsized; returns the height used.
@@ -147,6 +159,64 @@ void DeskHomeUi::begin(const HomeMenuItem slotItem, const std::vector<RecentBook
   open = false;
   selected = 0;
   chosenItem = HomeMenuItem::NONE;
+  loadTodo();
+}
+
+Rect DeskHomeUi::todoRect() const {
+  const auto layout = bookLayout(renderer);
+  const int lineH = renderer.getLineHeight(SMALL_FONT_ID);
+  const int rowH = std::max(lineH, TODO_ICON);
+  return Rect{layout.stripX, stripBarY(renderer, layout) + lineH + 12 + DOT_SIZE + TEXT_GAP,
+              STRIP_PAGE * layout.smallW + (STRIP_PAGE - 1) * SMALL_GAP,
+              renderer.getLineHeight(UI_10_FONT_ID) + TODO_GAP + 1 + TODO_GAP + static_cast<int>(TODO_ROWS) * rowH};
+}
+
+void DeskHomeUi::loadTodo() {
+  todoCount = 0;
+  auto store = makeUniqueNoThrow<TodoStore>();
+  if (!store) {
+    LOG_ERR("HOME", "OOM: Todo snapshot (%u bytes)", static_cast<unsigned>(sizeof(TodoStore)));
+    return;
+  }
+  // load() only reads snapshots; Todo owns edits and persistence.
+  if (store->load() != TodoStore::Status::Ok) {
+    LOG_ERR("HOME", "Todo snapshot load failed; widget hidden");
+    return;
+  }
+  const int textWidth = todoRect().width - TODO_ICON - TODO_GAP;
+  for (size_t i = 0; i < store->model().size() && todoCount < TODO_ROWS; ++i) {
+    const auto& task = *store->model().at(i);
+    if (task.completed) continue;
+    const auto text = renderer.truncatedText(SMALL_FONT_ID, task.text, textWidth);
+    snprintf(todoTexts[todoCount], sizeof(todoTexts[todoCount]), "%s", text.c_str());
+    ++todoCount;
+  }
+}
+
+bool DeskHomeUi::todoTapped() const {
+  if (!todoCount) return false;
+  const auto rect = todoRect();
+  int row = -1;
+  return input.rowTouch(row, rect.y, rect.height, 1, rect.x, rect.x + rect.width, rect.height) ==
+         MappedInputManager::RowTouch::Tap;
+}
+
+void DeskHomeUi::drawTodo() const {
+  if (!todoCount) return;
+  const auto rect = todoRect();
+  const int lineH = renderer.getLineHeight(SMALL_FONT_ID);
+  const int rowH = std::max(lineH, TODO_ICON);
+  renderer.drawText(UI_10_FONT_ID, rect.x, rect.y, tr(STR_TODO), true, EpdFontFamily::BOLD);
+  const int ruleY = rect.y + renderer.getLineHeight(UI_10_FONT_ID) + TODO_GAP;
+  renderer.drawLine(rect.x, ruleY, rect.x + rect.width - 1, ruleY, true);
+  freeink::ui::GfxRendererTarget target(renderer);
+  for (size_t i = 0; i < todoCount; ++i) {
+    const int y = ruleY + 1 + TODO_GAP + static_cast<int>(i) * rowH;
+    target.bitmap(freeink::ui::Rect{static_cast<int16_t>(rect.x), static_cast<int16_t>(y + (rowH - TODO_ICON) / 2),
+                                    TODO_ICON, TODO_ICON},
+                  freeink::ui::bitmapFromIcon(icon_checkbox_off_24), freeink::ui::BitmapMode::Contain);
+    renderer.drawText(SMALL_FONT_ID, rect.x + TODO_ICON + TODO_GAP, y + (rowH - lineH) / 2, todoTexts[i], true);
+  }
 }
 
 int DeskHomeUi::itemCount() const {
@@ -226,6 +296,7 @@ MappedInputManager::RowTouch DeskHomeUi::buttonTouch() const {
 
 void DeskHomeUi::draw(const bool buttonSelected, const bool hasBooks) const {
   DeskTheme::drawHomeMenuRow(renderer, DeskTheme::homeMenuButtonRect(renderer), buttonSelected, hasBooks);
+  drawTodo();
   if (!open) return;
   const int count = itemCount();
   const HomeMenuItem slotItem = slot;
@@ -348,7 +419,7 @@ void DeskHomeUi::drawBooks(const int selectorIndex) {
 
   // Strip: title (two lines reserved, so bars line up) and a progress bar.
   const int lineH = renderer.getLineHeight(SMALL_FONT_ID);
-  const int barY = layout.top + SMALL_H + TEXT_GAP + 2 * lineH + 4;
+  const int barY = stripBarY(renderer, layout);
   for (int slot = 0; slot < STRIP_PAGE && stripFirst + slot < count; ++slot) {
     const int index = stripFirst + slot;
     const Rect rect = smallRect(layout, slot);

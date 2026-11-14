@@ -525,6 +525,11 @@ void HomeActivity::loop() {
       if (deskUi->pageStrip(swipe == MappedInputManager::SwipeDir::Left, selectorIndex)) requestUpdate();
       return;
     }
+    if (deskUi->todoTapped()) {
+      haptic_feedback::touchAction();
+      openMenuItem(HomeMenuItem::TODO);
+      return;
+    }
     const int menuIndex = static_cast<int>(recentBooks.size());
     int touchedBook = -1;
     const auto bookTouch = deskUi->bookTouch(touchedBook);

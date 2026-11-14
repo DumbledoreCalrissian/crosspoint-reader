@@ -1,5 +1,7 @@
 #pragma once
 
+#include <TodoModel.h>
+
 #include <vector>
 
 #include "MappedInputManager.h"
@@ -50,6 +52,7 @@ class DeskHomeUi final {
 
   // Touch on the menu button while the panel is closed.
   MappedInputManager::RowTouch buttonTouch() const;
+  bool todoTapped() const;
 
   // Drawn after the covers, so the panel lies over them and never enters the
   // cover snapshot.
@@ -64,6 +67,14 @@ class DeskHomeUi final {
   int stripPageCount() const;
   void drawCover(Rect rect, int bookIndex, bool selected);
   void drawCurrentStats(Rect rect) const;
+  Rect todoRect() const;
+  void loadTodo();
+  void drawTodo() const;
+
+  static constexpr size_t TODO_ROWS = 3;
+  // Full UTF-8 task plus a possible three-byte ellipsis and terminator.
+  char todoTexts[TODO_ROWS][TodoModel::MAX_TEXT_BYTES + 4]{};
+  size_t todoCount = 0;
 
   GfxRenderer& renderer;
   MappedInputManager& input;
