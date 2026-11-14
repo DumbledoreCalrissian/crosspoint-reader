@@ -14,8 +14,11 @@ constexpr int BAR_HEIGHT = 3;
 constexpr int BAR_GAP = 6;
 constexpr int BAR_WIDTH = 22;
 constexpr int PANEL_WIDTH = 280;
-constexpr int PANEL_GAP = 4;      // between button and panel
-constexpr int PANEL_PADDING = 8;  // inside the frame
+constexpr int PANEL_GAP = 4;       // between button and panel
+constexpr int PANEL_PADDING = 10;  // frame to row highlight, equal on all sides
+// drawHomeMenuPanel cancels LyraTheme::drawButtonMenu's side inset, which
+// reads LyraMetrics; Desk must keep the same value.
+static_assert(DeskMetrics::values.contentSidePadding == LyraMetrics::values.contentSidePadding);
 }  // namespace
 
 void DeskTheme::drawRecentBookCover(GfxRenderer& renderer, const Rect rect, const std::vector<RecentBook>& recentBooks,
@@ -85,5 +88,11 @@ void DeskTheme::drawHomeMenuPanel(GfxRenderer& renderer, const Rect panel, const
   renderer.fillRoundedRect(panel.x, panel.y, panel.width, panel.height, metrics.listRowRadius, Color::White);
   renderer.drawRoundedRect(panel.x, panel.y, panel.width, panel.height, metrics.popupFrameThickness,
                            metrics.listRowRadius, true);
-  GUI.drawButtonMenu(renderer, homeMenuRowsRect(panel), rowCount, selectedIndex, label, icon);
+  // drawButtonMenu insets rows by contentSidePadding on each side only; widen
+  // its rect by that much so the rows fill homeMenuRowsRect exactly.
+  const Rect rows = homeMenuRowsRect(panel);
+  GUI.drawButtonMenu(
+      renderer,
+      Rect{rows.x - metrics.contentSidePadding, rows.y, rows.width + 2 * metrics.contentSidePadding, rows.height},
+      rowCount, selectedIndex, label, icon);
 }

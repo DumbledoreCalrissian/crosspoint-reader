@@ -28,7 +28,7 @@ class DeskTheme : public Lyra3CoversTheme {
   static void drawHomeMenuRow(const GfxRenderer& renderer, Rect button, bool selected, bool hasBooks);
   // Menu panel hanging from the button over Home; rows use menuRowStep().
   static Rect homeMenuPanelRect(const GfxRenderer& renderer, int rowCount);
-  // Rows area inside the panel, where drawButtonMenu draws and touch maps.
+  // Row tiles inside the panel (drawn and touched), inset equally on all sides.
   static Rect homeMenuRowsRect(Rect panel);
   static int menuRowStep(const GfxRenderer& renderer);
   static void drawHomeMenuPanel(GfxRenderer& renderer, Rect panel, int rowCount, int selectedIndex,
