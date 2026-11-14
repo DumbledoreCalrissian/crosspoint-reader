@@ -24,6 +24,11 @@ class HomeActivity final : public Activity {
   bool firstRenderDone = false;
   bool hasOpdsServers = false;
   bool hasPlugins = false;
+  // Desk theme: the shortcuts live behind one menu button (index recentBooks.size()).
+  bool deskHome = false;
+  // Desk menu panel drawn over Home; while open it owns the input.
+  bool deskMenuOpen = false;
+  int deskMenuSelected = 0;
   // The home "library" slot (index 2) shows Plugins while the plugin system is
   // enabled, otherwise OPDS when a server is configured. NONE hides the slot.
   // NetworkModeSelectionActivity lists OPDS in exactly the other cases.
@@ -86,6 +91,14 @@ class HomeActivity final : public Activity {
     return HomeMenuItem::NONE;
   }
   void onRecentBookSelected(const std::string& path);
+  // False when the item could not be opened (allocation failure); Home stays.
+  bool openMenuItem(HomeMenuItem item);
+  int deskMenuCount() const;
+  void setDeskMenuOpen(bool open);
+  void loopDeskMenu();
+  static const char* menuItemLabel(HomeMenuItem item);
+  static UIIcon menuItemIcon(HomeMenuItem item);
+  void displayHome();
   void onFileBrowserOpen();
   void onLibraryOpen();
   void onSettingsOpen();

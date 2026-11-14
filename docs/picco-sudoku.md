@@ -1,6 +1,6 @@
 # Sudoku
 
-Open **Sudoku** on Home. If the shortcut is below the visible rows, swipe or
+Open **Sudoku** on Home (in the Desk theme, from the menu button on Home). If the shortcut is below the visible rows, swipe or
 use Up/Down to reveal it. The board is touch-operated.
 
 The **Continue** button at the top reopens a saved game and shows its

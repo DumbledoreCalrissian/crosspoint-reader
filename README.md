@@ -23,6 +23,10 @@ Library shows each opened EPUB's saved percentage. Home shows the current EPUB's
 progress and reading time in every theme; Lyra Extended shows it on each recent
 cover, and Cover Grid thumbnails show each book's percentage and bar.
 
+The Desk theme shows three recent covers with their progress and reading time.
+Its other apps (Browse Files, Library, Settings, Todo, Pomodoro, Sudoku and any
+Plugins or OPDS shortcut) open from the menu button at the top right of Home.
+
 ## Try the simulator
 
 Keep the firmware and simulator repositories side by side:

@@ -15,6 +15,7 @@
 #include "RecentBooksStore.h"
 #include "components/CoverGridHomeUi.h"
 #include "components/themes/BaseTheme.h"
+#include "components/themes/desk/DeskTheme.h"
 #include "components/themes/lyra/Lyra3CoversTheme.h"
 #include "components/themes/lyra/LyraTheme.h"
 #include "components/themes/roundedraff/RoundedRaffTheme.h"
@@ -35,10 +36,14 @@ bool UITheme::supportsCoverGrid() { return HalMemory::getPsramHeap().totalBytes 
 
 bool UITheme::hasCoverGridHome() { return SETTINGS.uiTheme == CrossPointSettings::COVER_GRID && supportsCoverGrid(); }
 
+bool UITheme::hasDeskHome() { return SETTINGS.uiTheme == CrossPointSettings::DESK && supportsCoverGrid(); }
+
 void UITheme::drawCoverGridHome(CoverGridHomeUi& home) { home.renderUi(); }
 
 void UITheme::setTheme(CrossPointSettings::UI_THEME type) {
   if (type == CrossPointSettings::COVER_GRID && !supportsCoverGrid()) type = CrossPointSettings::LYRA;
+  // Desk is listed only with PSRAM (see homeThemeValues); keep a stale value usable.
+  if (type == CrossPointSettings::DESK && !supportsCoverGrid()) type = CrossPointSettings::LYRA_3_COVERS;
 
   switch (type) {
     case CrossPointSettings::UI_THEME::CLASSIC:
@@ -68,6 +73,11 @@ void UITheme::setTheme(CrossPointSettings::UI_THEME type) {
       LOG_DBG("UI", "Using Lyra 3 Covers theme");
       currentTheme = std::make_unique<Lyra3CoversTheme>();
       currentMetrics = &Lyra3CoversMetrics::values;
+      break;
+    case CrossPointSettings::UI_THEME::DESK:
+      LOG_DBG("UI", "Using Desk theme");
+      currentTheme = std::make_unique<DeskTheme>();
+      currentMetrics = &DeskMetrics::values;
       break;
   }
   metricsValid = false;

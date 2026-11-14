@@ -1,6 +1,6 @@
 # Todo
 
-Open **Todo** on Home, then **New task**. Type a description and tap **OK**.
+Open **Todo** on Home (in the Desk theme, from the menu button on Home), then **New task**. Type a description and tap **OK**.
 
 - Tap a checkbox to complete or reopen a task.
 - Tap its description to edit it. Long descriptions wrap or truncate in the list;

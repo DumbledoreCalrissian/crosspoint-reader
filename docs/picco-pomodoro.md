@@ -1,6 +1,6 @@
 # Pomodoro
 
-Open **Pomodoro** on Home. The screen shows the phase, remaining time and
+Open **Pomodoro** on Home (in the Desk theme, from the menu button on Home). The screen shows the phase, remaining time and
 completed focus sessions.
 
 - Defaults: 25-minute focus, 5-minute short break and 15-minute long break

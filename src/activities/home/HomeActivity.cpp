@@ -28,9 +28,11 @@
 #include "activities/todo/TodoActivity.h"
 #include "components/UITheme.h"
 #include "components/UiAppHelpers.h"
+#include "components/themes/desk/DeskTheme.h"
 #include "fontIds.h"
 
 int HomeActivity::getMenuItemCount() const {
+  if (deskHome) return static_cast<int>(recentBooks.size()) + 1;
   int count = 6;  // File Browser, Library, Settings, Todo, Pomodoro, Sudoku
   if (!recentBooks.empty()) {
     count += recentBooks.size();
@@ -271,6 +273,7 @@ void HomeActivity::onEnter() {
   hasPlugins = SETTINGS.pluginsEnabled != 0;
 
   const auto& metrics = UITheme::getInstance().getMetrics();
+  deskHome = UITheme::hasDeskHome();
   if (UITheme::getInstance().hasCoverGridHome()) {
     // Screen-lifetime interaction tables and component properties exceed the stack budget.
     coverGridUi = makeUniqueNoThrow<CoverGridHomeUi>(renderer);
@@ -296,7 +299,12 @@ void HomeActivity::onEnter() {
   }
 
   const auto base = static_cast<int>(recentBooks.size());
-  selectorIndex = initialMenuItem == HomeMenuItem::NONE ? 0 : base + menuItemToIndex(initialMenuItem, slotItem());
+  if (deskHome) {
+    // Returning from an app focuses the menu button it was opened from.
+    selectorIndex = initialMenuItem == HomeMenuItem::NONE ? 0 : base;
+  } else {
+    selectorIndex = initialMenuItem == HomeMenuItem::NONE ? 0 : base + menuItemToIndex(initialMenuItem, slotItem());
+  }
 
   // Trigger first update
   requestUpdate();
@@ -348,6 +356,165 @@ void HomeActivity::freeCoverBuffer() {
   coverBufferStored = false;
 }
 
+bool HomeActivity::openMenuItem(const HomeMenuItem item) {
+  switch (item) {
+    case HomeMenuItem::FILE_BROWSER:
+      onFileBrowserOpen();
+      break;
+    case HomeMenuItem::LIBRARY:
+      onLibraryOpen();
+      break;
+    case HomeMenuItem::PLUGINS:
+      onPluginsOpen();
+      break;
+    case HomeMenuItem::OPDS_BROWSER:
+      onOpdsBrowserOpen();
+      break;
+    case HomeMenuItem::TODO:
+      if (auto todo = makeUniqueNoThrow<TodoActivity>(renderer, mappedInput)) {
+        activityManager.replaceActivity(std::move(todo));
+        return true;
+      }
+      LOG_ERR("TODO", "Allocation failed: %u bytes", static_cast<unsigned>(sizeof(TodoActivity)));
+      return false;
+    case HomeMenuItem::POMODORO:
+      if (auto timer = makeUniqueNoThrow<PomodoroActivity>(renderer, mappedInput)) {
+        activityManager.replaceActivity(std::move(timer));
+        return true;
+      }
+      LOG_ERR("POMO", "Allocation failed: %u bytes", static_cast<unsigned>(sizeof(PomodoroActivity)));
+      return false;
+    case HomeMenuItem::SUDOKU:
+      if (auto sudoku = makeUniqueNoThrow<SudokuActivity>(renderer, mappedInput)) {
+        activityManager.replaceActivity(std::move(sudoku));
+        return true;
+      }
+      LOG_ERR("SUDOKU", "Allocation failed: %u bytes", static_cast<unsigned>(sizeof(SudokuActivity)));
+      return false;
+    case HomeMenuItem::SETTINGS_MENU:
+      onSettingsOpen();
+      break;
+    default:
+      return false;
+  }
+  return true;
+}
+
+int HomeActivity::deskMenuCount() const {
+  int count = 0;
+  while (indexToMenuItem(count, slotItem()) != HomeMenuItem::NONE) ++count;
+  return count;
+}
+
+void HomeActivity::setDeskMenuOpen(const bool open) {
+  deskMenuOpen = open;
+  deskMenuSelected = 0;
+  requestUpdate();
+}
+
+const char* HomeActivity::menuItemLabel(const HomeMenuItem item) {
+  switch (item) {
+    case HomeMenuItem::FILE_BROWSER:
+      return tr(STR_BROWSE_FILES);
+    case HomeMenuItem::LIBRARY:
+      return tr(STR_LIBRARY);
+    case HomeMenuItem::PLUGINS:
+      return tr(STR_PLUGINS);
+    case HomeMenuItem::OPDS_BROWSER:
+      return tr(STR_OPDS_BROWSER);
+    case HomeMenuItem::SETTINGS_MENU:
+      return tr(STR_SETTINGS_TITLE);
+    case HomeMenuItem::TODO:
+      return tr(STR_TODO);
+    case HomeMenuItem::POMODORO:
+      return tr(STR_POMODORO);
+    case HomeMenuItem::SUDOKU:
+      return tr(STR_SUDOKU);
+    default:
+      return "";
+  }
+}
+
+UIIcon HomeActivity::menuItemIcon(const HomeMenuItem item) {
+  switch (item) {
+    case HomeMenuItem::FILE_BROWSER:
+      return Folder;
+    case HomeMenuItem::LIBRARY:
+      return Library;
+    case HomeMenuItem::PLUGINS:
+      return Plugins;
+    case HomeMenuItem::OPDS_BROWSER:
+      return Book;
+    case HomeMenuItem::SETTINGS_MENU:
+      return Settings;
+    case HomeMenuItem::TODO:
+      return Todo;
+    case HomeMenuItem::POMODORO:
+      return Pomodoro;
+    case HomeMenuItem::SUDOKU:
+      return Sudoku;
+    default:
+      return None;
+  }
+}
+
+// Open panel: buttons and swipes move its selection, Confirm or a row tap opens
+// the item, Back or a tap outside the panel closes it.
+void HomeActivity::loopDeskMenu() {
+  const int count = deskMenuCount();
+  const auto open = [this](const int index) {
+    deskMenuOpen = false;
+    // On failure Home stays: repaint so the closed panel leaves the screen.
+    if (!openMenuItem(indexToMenuItem(index, slotItem()))) requestUpdate();
+  };
+  const auto step = [this, count](const bool next) {
+    deskMenuSelected = next ? ButtonNavigator::nextIndex(deskMenuSelected, count)
+                            : ButtonNavigator::previousIndex(deskMenuSelected, count);
+    requestUpdate();
+  };
+  buttonNavigator.onNext([&step] { step(true); });
+  buttonNavigator.onPrevious([&step] { step(false); });
+  const auto swipe = mappedInput.wasSwipe();
+  if (swipe != MappedInputManager::SwipeDir::None) {
+    if (swipe == MappedInputManager::SwipeDir::Up || swipe == MappedInputManager::SwipeDir::Down) {
+      step(swipe == MappedInputManager::SwipeDir::Up);
+    }
+    return;
+  }
+  if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
+    setDeskMenuOpen(false);
+    return;
+  }
+  if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
+    open(deskMenuSelected);
+    return;
+  }
+
+  const Rect panel = DeskTheme::homeMenuPanelRect(renderer, count);
+  const Rect rows = DeskTheme::homeMenuRowsRect(panel);
+  int row = -1;
+  const auto touch = mappedInput.rowTouch(row, rows.y, DeskTheme::menuRowStep(renderer), count, rows.x,
+                                          rows.x + rows.width, GUI.getMenuRowHeight(renderer));
+  if (touch == MappedInputManager::RowTouch::Down) {
+    if (deskMenuSelected != row) {
+      deskMenuSelected = row;
+      requestUpdate();
+    }
+    return;
+  }
+  if (touch == MappedInputManager::RowTouch::Tap) {
+    haptic_feedback::touchAction();
+    open(row);
+    return;
+  }
+  int tx = 0;
+  int ty = 0;
+  if (mappedInput.wasScreenTapped(tx, ty) &&
+      !(tx >= panel.x && tx < panel.x + panel.width && ty >= panel.y && ty < panel.y + panel.height)) {
+    setDeskMenuOpen(false);
+  }
+}
+
 void HomeActivity::loop() {
   const int menuCount = getMenuItemCount();
   const auto& metrics = UITheme::getInstance().getMetrics();
@@ -357,48 +524,17 @@ void HomeActivity::loop() {
       onRecentBookSelected(recentBooks[selectorIndex].path);
       return;
     }
-    const int menuIndex = selectorIndex - static_cast<int>(recentBooks.size());
-    switch (indexToMenuItem(menuIndex, slotItem())) {
-      case HomeMenuItem::FILE_BROWSER:
-        onFileBrowserOpen();
-        break;
-      case HomeMenuItem::LIBRARY:
-        onLibraryOpen();
-        break;
-      case HomeMenuItem::PLUGINS:
-        onPluginsOpen();
-        break;
-      case HomeMenuItem::OPDS_BROWSER:
-        onOpdsBrowserOpen();
-        break;
-      case HomeMenuItem::TODO:
-        if (auto todo = makeUniqueNoThrow<TodoActivity>(renderer, mappedInput)) {
-          activityManager.replaceActivity(std::move(todo));
-        } else {
-          LOG_ERR("TODO", "Allocation failed: %u bytes", static_cast<unsigned>(sizeof(TodoActivity)));
-        }
-        break;
-      case HomeMenuItem::POMODORO:
-        if (auto timer = makeUniqueNoThrow<PomodoroActivity>(renderer, mappedInput)) {
-          activityManager.replaceActivity(std::move(timer));
-        } else {
-          LOG_ERR("POMO", "Allocation failed: %u bytes", static_cast<unsigned>(sizeof(PomodoroActivity)));
-        }
-        break;
-      case HomeMenuItem::SUDOKU:
-        if (auto sudoku = makeUniqueNoThrow<SudokuActivity>(renderer, mappedInput)) {
-          activityManager.replaceActivity(std::move(sudoku));
-        } else {
-          LOG_ERR("SUDOKU", "Allocation failed: %u bytes", static_cast<unsigned>(sizeof(SudokuActivity)));
-        }
-        break;
-      case HomeMenuItem::SETTINGS_MENU:
-        onSettingsOpen();
-        break;
-      default:
-        break;
+    if (deskHome) {
+      setDeskMenuOpen(true);
+      return;
     }
+    openMenuItem(indexToMenuItem(selectorIndex - static_cast<int>(recentBooks.size()), slotItem()));
   };
+
+  if (deskMenuOpen) {
+    loopDeskMenu();
+    return;
+  }
 
   // Cover grid home splits navigation by button group (see below); the flat
   // next/previous cycle is for the classic list home only.
@@ -501,6 +637,25 @@ void HomeActivity::loop() {
     return;
   }
 
+  if (deskHome) {
+    const Rect button = DeskTheme::homeMenuButtonRect(renderer);
+    int row = -1;
+    const auto buttonTouch =
+        mappedInput.rowTouch(row, button.y, button.height, 1, button.x, button.x + button.width, button.height);
+    const int menuIndex = static_cast<int>(recentBooks.size());
+    if (buttonTouch == MappedInputManager::RowTouch::Down && selectorIndex != menuIndex) {
+      selectorIndex = menuIndex;
+      requestUpdate();
+    } else if (buttonTouch == MappedInputManager::RowTouch::Tap) {
+      selectorIndex = menuIndex;
+      haptic_feedback::touchAction();
+      activateSelection();
+      return;
+    }
+    if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) activateSelection();
+    return;
+  }
+
   const int renderedMenuCount =
       menuCount - (metrics.homeContinueReadingInMenu ? 0 : static_cast<int>(recentBooks.size()));
   const int first = menuTopRow.load();
@@ -588,6 +743,7 @@ void HomeActivity::render(RenderLock&&) {
   // homeTopPadding, so the height must shrink by topPadding or the band (and a
   // centered title, e.g. RoundedRaff's book title) sinks into the tile.
   // Home is the stack root: no back button in its header.
+  const Rect deskMenuButton = deskHome ? DeskTheme::homeMenuButtonRect(renderer) : Rect{};
   GUI.drawHeader(renderer, Rect{0, metrics.topPadding, pageWidth, metrics.homeTopPadding - metrics.topPadding},
                  metrics.homeContinueReadingInMenu && !recentBooks.empty() ? recentBooks[0].title.c_str() : nullptr,
                  nullptr, false);
@@ -603,6 +759,25 @@ void HomeActivity::render(RenderLock&&) {
   GUI.drawRecentBookCover(renderer, Rect{content.x, metrics.homeTopPadding, content.width, metrics.homeCoverTileHeight},
                           recentBooks, readingSummaries.data(), selectorIndex, coverRendered, coverBufferStored,
                           bufferRestored, std::bind(&HomeActivity::storeCoverBuffer, this));
+
+  if (deskHome) {
+    DeskTheme::drawHomeMenuRow(renderer, deskMenuButton, selectorIndex == static_cast<int>(recentBooks.size()),
+                               !recentBooks.empty());
+    // Back closes an open panel instead of resuming.
+    const char* backLabel = deskMenuOpen ? tr(STR_BACK) : recentBooks.empty() ? "" : tr(STR_RESUME);
+    const auto labels = mappedInput.mapLabels(backLabel, tr(STR_SELECT), tr(STR_DIR_UP), tr(STR_DIR_DOWN));
+    GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
+    if (deskMenuOpen) {
+      const int count = deskMenuCount();
+      const HomeMenuItem slot = slotItem();
+      DeskTheme::drawHomeMenuPanel(
+          renderer, DeskTheme::homeMenuPanelRect(renderer, count), count, deskMenuSelected,
+          [slot](const int i) { return std::string(menuItemLabel(indexToMenuItem(i, slot))); },
+          [slot](const int i) { return menuItemIcon(indexToMenuItem(i, slot)); });
+    }
+    displayHome();
+    return;
+  }
 
   // Build menu items dynamically
   // File Transfer lives in the file browser's root header.
@@ -647,6 +822,11 @@ void HomeActivity::render(RenderLock&&) {
                                             tr(STR_DIR_DOWN));
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
 
+  displayHome();
+}
+
+// Shows the frame, then generates missing cover thumbs after the first paint.
+void HomeActivity::displayHome() {
   renderer.displayBuffer(cleanInitialRefresh && !firstRenderDone ? HalDisplay::HALF_REFRESH : HalDisplay::FAST_REFRESH);
 
   if (!firstRenderDone) {
@@ -655,7 +835,7 @@ void HomeActivity::render(RenderLock&&) {
   } else if (!recentsLoaded && !recentsLoading) {
     recentsLoading = true;
     const int themeThumbHeight = GUI.homeCoverThumbHeight(renderer);
-    loadRecentCovers(themeThumbHeight > 0 ? themeThumbHeight : metrics.homeCoverHeight);
+    loadRecentCovers(themeThumbHeight > 0 ? themeThumbHeight : UITheme::getInstance().getMetrics().homeCoverHeight);
   }
 }
 
