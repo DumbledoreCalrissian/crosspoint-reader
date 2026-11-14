@@ -538,6 +538,11 @@ void HomeActivity::loop() {
       openMenuItem(HomeMenuItem::WEATHER);
       return;
     }
+    if (deskUi->goalTapped()) {
+      haptic_feedback::touchAction();
+      activityManager.goToSettings(SettingsSection::Reader, &CrossPointSettings::dailyReadingGoal);
+      return;
+    }
     if (deskUi->todoTapped()) {
       haptic_feedback::touchAction();
       openMenuItem(HomeMenuItem::TODO);

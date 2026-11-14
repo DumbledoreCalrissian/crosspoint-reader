@@ -192,6 +192,7 @@ enum class ControlsGroup : uint8_t { Root, Power, Front, Side, Touch };
 class SettingsActivity final : public UiListActivity {
   const SettingsSection section;
   const ControlsGroup controlsGroup;
+  uint8_t CrossPointSettings::* const focus;  // row selected on entry, if present
   std::vector<SettingInfo> settings;
 
   bool preserveQuickResumeTimeoutOn = false;
@@ -223,7 +224,7 @@ class SettingsActivity final : public UiListActivity {
 
  public:
   SettingsActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, SettingsSection section,
-                   ControlsGroup controlsGroup = ControlsGroup::Root);
+                   ControlsGroup controlsGroup = ControlsGroup::Root, uint8_t CrossPointSettings::* focus = nullptr);
   void onEnter() override;
   void render(RenderLock&& lock) override;
 };

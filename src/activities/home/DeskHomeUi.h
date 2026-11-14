@@ -55,6 +55,8 @@ class DeskHomeUi final {
   MappedInputManager::RowTouch buttonTouch() const;
   bool todoTapped() const;
   bool weatherTapped() const;
+  // Calendar totals and goal row; opens Reader settings, where the goal is edited.
+  bool goalTapped() const;
 
   // Drawn after the covers, so the panel lies over them and never enters the
   // cover snapshot.
@@ -72,6 +74,8 @@ class DeskHomeUi final {
   Rect todoRect() const;
   Rect weatherRect() const;
   int widgetsRuleY() const;
+  int footerActionY() const;
+  Rect calendarFooterRect() const;
   void loadWeather();
   void drawWeather() const;
   weather::Snapshot weatherData;
@@ -88,6 +92,7 @@ class DeskHomeUi final {
   uint8_t calendarDays = 0;
   uint8_t calendarFirstWeekday = 0;
   uint8_t calendarToday = 0;
+  uint8_t calendarGoal = 0;  // minutes, from the ledger
   void loadTodo();
   void drawTodo() const;
 

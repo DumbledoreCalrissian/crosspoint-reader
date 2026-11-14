@@ -438,6 +438,7 @@ void WeatherActivity::buildScreen(UiScreen& screen) {
       header.trailingEnabled = editable && store->model().configured;
       header.trailingStyles.normal.border = fui::Paint::solid(fui::Color::Black);
       header.trailingStyles.normal.borderWidth = 1;
+      header.trailingRadius = screen.theme().listRowRadius;  // match the Change/Units buttons
       if (selection == 0) header.trailingStyles.normal.background = fui::Paint::dither(fui::Color::LightGray);
     }
     fui::header(screen.frame(), band, header);

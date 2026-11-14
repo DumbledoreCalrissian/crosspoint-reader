@@ -1,8 +1,10 @@
 # Reading calendar
 
 The Desk Home theme shows a monthly reading calendar, total minutes read this
-month and a streak of days meeting your reading goal. The widget updates when you enter Home and is display-only;
-buttons continue to select books and the app menu.
+month, a streak of days meeting your reading goal and the current goal. The widget
+updates when you enter Home. Tapping the totals or goal line opens **Settings → Reader** with
+**Daily reading goal** selected;
+dates do nothing when tapped. Buttons continue to select books and the app menu.
 
 Choose **Settings → Reader → Daily reading goal**. The default is 30 minutes;
 choices are 5, 10, 15, 20, 30, 45 and 60 minutes. Reading in short bursts adds up

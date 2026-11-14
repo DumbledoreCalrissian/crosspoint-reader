@@ -212,8 +212,9 @@ void SettingsActivity::rebuildSettings() {
 }
 
 SettingsActivity::SettingsActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
-                                   const SettingsSection section, const ControlsGroup controlsGroup)
-    : UiListActivity("Settings", renderer, mappedInput), section(section), controlsGroup(controlsGroup) {}
+                                   const SettingsSection section, const ControlsGroup controlsGroup,
+                                   uint8_t CrossPointSettings::* const focus)
+    : UiListActivity("Settings", renderer, mappedInput), section(section), controlsGroup(controlsGroup), focus(focus) {}
 
 void SettingsActivity::onEnter() {
   UiListActivity::onEnter();
@@ -224,6 +225,14 @@ void SettingsActivity::onEnter() {
   syncQuickResumeTimeoutForSleepScreen(/*sleepScreenChanged=*/true, /*quickResumeTimeoutChanged=*/false);
 
   rebuildSettings();
+  if (focus) {
+    for (size_t i = 0; i < settings.size(); ++i) {
+      if (settings[i].valuePtr == focus) {
+        nav.selected = static_cast<int>(i);
+        break;
+      }
+    }
+  }
 }
 
 // Rebuilds rowValues_/rowItems_ (label + actionValue) for settings.

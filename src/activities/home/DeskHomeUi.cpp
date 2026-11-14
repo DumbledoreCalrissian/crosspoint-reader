@@ -49,14 +49,20 @@ constexpr int TODO_TEXT_INSET = 16;
 constexpr int TODO_GAP = 4;
 constexpr int CHEVRON_INSET = 10;
 constexpr int CHEVRON_RESERVE = 24;
+constexpr int LOWER_BAND_GAP = 12;  // between Todo and the calendar/Weather band
+constexpr int MIN_TOUCH = 44;       // px, minimum tap height
 
-void drawWidgetChevron(const GfxRenderer& renderer, const Rect rect) {
+// Chevron at the right edge of rect, centred on a line of lineHeight from y.
+void drawChevron(const GfxRenderer& renderer, const Rect rect, const int y, const int lineHeight) {
   const int x = rect.x + rect.width - CHEVRON_INSET;
-  const int y = rect.y + (renderer.getLineHeight(UI_10_FONT_ID) - 10) / 2;
+  const int top = y + (lineHeight - 10) / 2;
   for (int i = 0; i < 2; ++i) {
-    renderer.drawLine(x - i, y, x + 5 - i, y + 5, true);
-    renderer.drawLine(x + 5 - i, y + 5, x - i, y + 10, true);
+    renderer.drawLine(x - i, top, x + 5 - i, top + 5, true);
+    renderer.drawLine(x + 5 - i, top + 5, x - i, top + 10, true);
   }
+}
+void drawWidgetChevron(const GfxRenderer& renderer, const Rect rect) {
+  drawChevron(renderer, rect, rect.y, renderer.getLineHeight(UI_10_FONT_ID));
 }
 
 struct BookLayout {
@@ -502,6 +508,7 @@ void DeskHomeUi::loadCalendar() {
   }
   calendarMinutes = ledger->model().minutes(first, next - 1);
   calendarStreak = ledger->model().streak(today);
+  calendarGoal = readingcalendar::GOALS[ledger->goalIndex()];
   static constexpr StrId MONTHS[] = {StrId::STR_CAL_JAN, StrId::STR_CAL_FEB, StrId::STR_CAL_MAR, StrId::STR_CAL_APR,
                                      StrId::STR_CAL_MAY, StrId::STR_CAL_JUN, StrId::STR_CAL_JUL, StrId::STR_CAL_AUG,
                                      StrId::STR_CAL_SEP, StrId::STR_CAL_OCT, StrId::STR_CAL_NOV, StrId::STR_CAL_DEC};
@@ -556,6 +563,33 @@ void DeskHomeUi::drawCalendar() const {
   renderer.drawText(UI_10_FONT_ID, x + width / 2, footerY + 8, value, true, EpdFontFamily::BOLD);
   renderer.drawText(SMALL_FONT_ID, x, footerY + 8 + headingH, tr(STR_CAL_THIS_MONTH), true);
   renderer.drawText(SMALL_FONT_ID, x + width / 2, footerY + 8 + headingH, tr(STR_CAL_STREAK), true);
+  const int actionY = footerActionY();
+  snprintf(value, sizeof(value), tr(STR_CAL_GOAL), unsigned(calendarGoal));
+  const auto goal = renderer.truncatedText(SMALL_FONT_ID, value, width - CHEVRON_RESERVE);
+  renderer.drawText(SMALL_FONT_ID, x, actionY, goal.c_str(), true);
+  drawChevron(renderer, Rect{x, actionY, width, line}, actionY, line);
+}
+
+Rect DeskHomeUi::calendarFooterRect() const {
+  const int top = widgetsRuleY();
+  const int bottom = footerActionY() + renderer.getLineHeight(SMALL_FONT_ID);
+  const auto weather = weatherRect();
+  return Rect{bookLayout(renderer).current.x, top, weather.width, std::max(MIN_TOUCH, bottom - top)};
+}
+
+bool DeskHomeUi::goalTapped() const {
+  if (!calendarVisible) return false;
+  const auto area = calendarFooterRect();
+  int row = -1;
+  return input.rowTouch(row, area.y, area.height, 1, area.x, area.x + area.width, area.height) ==
+         MappedInputManager::RowTouch::Tap;
+}
+
+int DeskHomeUi::footerActionY() const {
+  const int footerY = widgetsRuleY();
+  const int small = renderer.getLineHeight(SMALL_FONT_ID);
+  // Below the calendar totals and below Weather's two status lines.
+  return std::max(footerY + 8 + renderer.getLineHeight(UI_10_FONT_ID) + small, footerY + 6 + 2 * small);
 }
 
 Rect DeskHomeUi::weatherRect() const {
@@ -563,7 +597,7 @@ Rect DeskHomeUi::weatherRect() const {
   const auto todo = todoRect();
   const int padding = DeskMetrics::values.contentSidePadding;
   const int width = (content.width - 2 * padding - SMALL_GAP) / 2;
-  const int top = todo.y + todo.height + 24;
+  const int top = todo.y + todo.height + LOWER_BAND_GAP;
   return Rect{content.x + content.width - padding - width, top, width, renderer.getScreenHeight() - top - 16};
 }
 int DeskHomeUi::widgetsRuleY() const {
@@ -648,4 +682,8 @@ void DeskHomeUi::drawWeather() const {
   y += small;
   renderer.drawText(SMALL_FONT_ID, r.x, y,
                     weatherui::stale(f, weatherNow) ? tr(STR_WEATHER_CACHED_PROVIDER) : tr(STR_WEATHER_PROVIDER), true);
+  const int actionY = footerActionY();
+  const auto open = renderer.truncatedText(SMALL_FONT_ID, tr(STR_WEATHER_OPEN), r.width - CHEVRON_RESERVE);
+  renderer.drawText(SMALL_FONT_ID, r.x, actionY, open.c_str(), true);
+  drawChevron(renderer, r, actionY, small);
 }
