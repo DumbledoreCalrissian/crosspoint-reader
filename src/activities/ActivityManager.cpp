@@ -387,6 +387,10 @@ void ActivityManager::goHome(HomeMenuItem initialMenuItem, bool cleanInitialRefr
       initialMenuItem = HomeMenuItem::FILE_BROWSER;
     } else if (activityName == "Settings" || activityName == "SettingsList") {
       initialMenuItem = HomeMenuItem::SETTINGS_MENU;
+    } else if (activityName == "Weather") {
+      initialMenuItem = HomeMenuItem::WEATHER;
+    } else if (activityName == "Todo") {
+      initialMenuItem = HomeMenuItem::TODO;
     } else if (activityName == "Pomodoro") {
       initialMenuItem = HomeMenuItem::POMODORO;
     } else if (activityName == "Sudoku" || activityName == "SudokuBoard" || activityName == "SudokuSettings") {
